@@ -1,7 +1,7 @@
 EXE = main
 OBJ_DIR = obj
 
-SOURCES = $(filter-out test.cpp, $(wildcard *.cpp))
+SOURCES = $(filter-out sample.cpp, $(wildcard *.cpp))
 
 ifeq ($(findstring test, $(MAKECMDGOALS)), test)
 	SOURCES = $(filter-out main.cpp, $(wildcard *.cpp))
