@@ -91,4 +91,10 @@ void WindowManager::initObjects()
 {
     camera = new Camera(glm::vec3(0.0f, 0.0f, -10.0f), 90.0f, 0.0f);
     cubeModel = new CubeModel();
+
+    fr = new FileReader("./Data/VolumeData/");
+    fr->initNameList();
+    fr->readRawData("Carp");
+
+    iso = new Isosurface(fr->getData(), 80);
 }

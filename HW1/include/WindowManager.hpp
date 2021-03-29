@@ -5,6 +5,8 @@
 #include <glm/glm.hpp>
 #include <Camera.hpp>
 #include <CubeModel.hpp>
+#include <FileReader.hpp>
+#include <Isosurface.hpp>
 
 using namespace std;
 
@@ -16,6 +18,8 @@ private:
     GLFWwindow* window;
     Camera *camera;
     CubeModel *cubeModel;
+    FileReader *fr;
+    Isosurface *iso;
 
 public:
     WindowManager(string, int, int);

@@ -1,9 +1,31 @@
 #include <FileReader.hpp>
 
-FileReader::FileReader(string path)
+FileReader::FileReader(string rootPath)
 {
-    this->path = path;
+    this->rootPath = rootPath;
     nameList.clear();
+    info = new FileInfo();
+    data.clear();
+    endian = isBigEndian() ? "big" : "little";
+}
+
+bool FileReader::isBigEndian()
+{
+    union testValue
+    {
+        uint32_t value;
+        unsigned char eachByte[4];
+    };
+
+    union testValue test;
+    test.value = 0x12345678;
+
+    if(test.eachByte[0] == 0x12 && test.eachByte[1] == 0x34
+    && test.eachByte[2] == 0x56 && test.eachByte[3] == 0x78)
+    {
+        return true;
+    }
+    else return false;
 }
 
 void FileReader::initNameList()
@@ -13,11 +35,11 @@ void FileReader::initNameList()
 
     string fullname = "";
 
-    dirp = opendir(path.c_str());
+    dirp = opendir(rootPath.c_str());
 
     if (dirp == NULL) 
     {
-        cout << "Error(" << errno << ") opening " << path.c_str() << endl;
+        cout << "Error(" << errno << ") opening " << rootPath.c_str() << endl;
         perror("opendir");
 
         return;
@@ -34,10 +56,11 @@ void FileReader::initNameList()
     closedir(dirp);
 }
 
-FileInfo * FileReader::readInf(string filename)
+void FileReader::readInf(string filename)
 {
-    FileInfo *info = new FileInfo();
+    info->init();
 
+    filename = rootPath + filename;
     filename += ".inf";
 
     ifstream fs;
@@ -50,81 +73,91 @@ FileInfo * FileReader::readInf(string filename)
     }
 
     string line;
-    regex reg("");
     smatch matches;
+    regex reg_resolution("^resolution.*?(\\d+).*?(\\d+).*?(\\d+)");
+    regex reg_valueType("^(sample-?type|value-?type).*?((\\w+).?(\\w+)?)");
+    regex reg_voxelSize("^(voxel-?size|ratio).*?(\\d+\\.\\d+|\\d+).(\\d+\\.\\d+|\\d+).(\\d+\\.\\d+|\\d+)");
+    regex reg_endian("^endian.*?(\\w+)");
 
     while(getline(fs, line))
     {
         transform(line.begin(), line.end(), line.begin(), ::tolower);
-
-        reg.assign("^resolution(.*?)(\\d+).(\\d+).(\\d+)");
-
-        if(regex_search(line, matches, reg))
+        
+        if(regex_search(line, matches, reg_resolution))
         {
-            info->setResolution({stoi(matches[2]), stoi(matches[3]), stoi(matches[4])});
+            info->setResolution({stoi(matches[1]), stoi(matches[2]), stoi(matches[3])});
         }
 
-        reg.assign("^(sample-?type|value-?type)(.*?)(\\w+)");
-
-        if(regex_search(line, matches, reg))
+        else if(regex_search(line, matches, reg_valueType))
         {
-            string origin = matches[3];
+            string origin = matches[2];
             string vtype = "";
 
             if(strstr(origin.c_str(), "unsigned") != NULL)
             {
-                vtype = "u";
-            }
-
-            if(strstr(origin.c_str(), "char") != NULL)
-            {
-                vtype += "b";
-            }
-            else if(strstr(origin.c_str(), "short"))
-            {
-                vtype += "s";
-            }
-            else if(strstr(origin.c_str(), "int"))
-            {
-                vtype += "i";
-            }
-            else if(strstr(origin.c_str(), "float"))
-            {
-                vtype += "f";
+                if(     strstr(origin.c_str(), "char"    ) != NULL) vtype = "ub";
+                else if(strstr(origin.c_str(), "short"   ) != NULL) vtype = "us";
+                else if(strstr(origin.c_str(), "int"     ) != NULL) vtype = "ui";
             }
             else
             {
-                vtype = origin;
+                if(     strstr(origin.c_str(), "char"    ) != NULL) vtype = "b";
+                else if(strstr(origin.c_str(), "short"   ) != NULL) vtype = "s";
+                else if(strstr(origin.c_str(), "int"     ) != NULL) vtype = "i";
+                else if(strstr(origin.c_str(), "float"   ) != NULL) vtype = "f";
+                else vtype = origin;
             }
             
             info->setValueType(vtype);
         }
 
-        reg.assign("^(voxel-?size|ratio)(.*?)(\\d+\\.\\d+|\\d+).(\\d+\\.\\d+|\\d+).(\\d+\\.\\d+|\\d+)");
-
-        if(regex_search(line, matches, reg))
+        else if(regex_search(line, matches, reg_voxelSize))
         {
-            info->setVoxelSize({stof(matches[3]), stof(matches[4]), stof(matches[5])});
+            info->setVoxelSize({stof(matches[2]), stof(matches[3]), stof(matches[4])});
         }
 
-        reg.assign("^(endian)(.*?)(\\w+)");
-
-        if(regex_search(line, matches, reg))
+        else if(regex_search(line, matches, reg_endian))
         {
-            string endian = matches[3];
+            string endian = matches[1];
 
-            if(endian[0] == 'b')
-            {
-                endian = "big";
-            }
-            if(endian[0] == 'l')
-            {
-                endian = "little";
-            }
+            if(endian[0] == 'b') endian = "big";
+            else if(endian[0] == 'l') endian = "little";
 
             info->setEndian(endian);
         }
     }
 
-    return info;
+    fs.close();
+}
+
+void FileReader::readRawData(string filename)
+{
+    if(info->getValueType() == "ub")
+        readRawData<unsigned char>(filename);
+    else if(info->getValueType() == "us")
+        readRawData<unsigned short>(filename);
+    else if(info->getValueType() == "ui")
+        readRawData<unsigned int>(filename);
+    else if(info->getValueType() == "b")
+        readRawData<char>(filename);
+    else if(info->getValueType() == "b")
+        readRawData<short>(filename);
+    else if(info->getValueType() == "b")
+        readRawData<int>(filename);
+    else if(info->getValueType() == "b")
+        readRawData<float>(filename);
+}
+
+void FileReader::printRawData() const
+{
+    for(auto x: data)
+    {
+        for(auto y: x)
+        {
+            for(auto z: y)
+            {
+                cout << z << " ";
+            }
+        }
+    }
 }
