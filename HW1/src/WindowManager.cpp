@@ -4,6 +4,7 @@ WindowManager::WindowManager(string title, int width, int height)
 {
     this->width = width;
     this->height = height;
+    this->leftButtonIsPressing = false;
 
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -40,8 +41,12 @@ void WindowManager::initCallbacks()
         static_cast<WindowManager*>(glfwGetWindowUserPointer(window))->keyCallback(window, key, scancode, action, mods);
     };
 
-    auto mouseCb = [](GLFWwindow* window, double xpos, double ypos){
-        static_cast<WindowManager*>(glfwGetWindowUserPointer(window))->mouseCallback(window, xpos, ypos);
+    auto mouseMoveCb = [](GLFWwindow* window, double xpos, double ypos){
+        static_cast<WindowManager*>(glfwGetWindowUserPointer(window))->mouseMoveCallback(window, xpos, ypos);
+    };
+
+    auto mousePressCb = [](GLFWwindow* window, int button, int action, int mods){
+        static_cast<WindowManager*>(glfwGetWindowUserPointer(window))->mousePressCallback(window, button, action, mods);
     };
 
     auto scrollCb = [](GLFWwindow* window, double xoffset, double yoffset){
@@ -50,7 +55,8 @@ void WindowManager::initCallbacks()
 
     glfwSetFramebufferSizeCallback(this->window, resizeCb);
     glfwSetKeyCallback(this->window, keyCb);
-    glfwSetCursorPosCallback(this->window, mouseCb);
+    glfwSetMouseButtonCallback(this->window, mousePressCb);
+    glfwSetCursorPosCallback(this->window, mouseMoveCb);
     glfwSetScrollCallback(this->window, scrollCb);
 }
 
@@ -77,14 +83,49 @@ void WindowManager::keyCallback(GLFWwindow * window, int key, int scancode, int 
     }
 }
 
-void WindowManager::mouseCallback(GLFWwindow* window, double xpos, double ypos)
+void  WindowManager::mousePressCallback(GLFWwindow* window, int button, int action, int mods)
 {
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+        this->leftButtonIsPressing = true;
+    else if( button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
+        this->leftButtonIsPressing = false;
+}
 
+void WindowManager::mouseMoveCallback(GLFWwindow* window, double xpos, double ypos)
+{
+    static bool firstPress = true;
+    static float lastX, lastY;
+    float yoffset, xoffset;
+
+    if( leftButtonIsPressing )
+    {
+        if( firstPress )
+        {
+            lastX = xpos;
+            lastY = ypos;
+            firstPress = false;
+            return;
+        }
+
+        xoffset = xpos - lastX;
+        yoffset = lastY - ypos;
+
+        lastX = xpos;
+        lastY = ypos;
+
+        const float sensitivity = 0.5f;
+        xoffset *= sensitivity;
+        yoffset *= sensitivity;
+
+        this->camera->move(xoffset, yoffset);
+    }
+
+    firstPress = true;
 }
 
 void WindowManager::scrollCallback(GLFWwindow* window, double xoffset, double yoffset)
 {
-
+    camera->zoom(yoffset); 
 }
 
 void WindowManager::initObjects()

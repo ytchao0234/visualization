@@ -1,6 +1,6 @@
 #include <Camera.hpp>
 
-Camera::Camera(glm::vec3 position, float yaw, float pitch): zoom(1)
+Camera::Camera(glm::vec3 position, float yaw, float pitch): zoomValue(50)
 {
     this->position = position;
     this->yaw = yaw;
@@ -15,9 +15,38 @@ Camera::Camera(glm::vec3 position, float yaw, float pitch): zoom(1)
     target = position + direction;
 }
 
+void Camera::zoom( float value )
+{
+    zoomValue -= (float)value;
+
+    if (zoomValue < 1.0f)
+        zoomValue = 1.0f;
+    else if (zoomValue > 100.0f)
+        zoomValue = 100.0f;
+}
+
+void Camera::move(float xoffset, float yoffset)
+{
+    yaw   += xoffset;
+    pitch += yoffset;
+    
+    if(pitch > 89.0f)
+        pitch =  89.0f;
+    if(pitch < -89.0f)
+        pitch = -89.0f;
+    
+    glm::vec3 dTemp;
+    dTemp.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    dTemp.y = sin(glm::radians(pitch));
+    dTemp.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    direction = glm::normalize(dTemp);
+
+    position = target - direction;
+}
+
 glm::mat4 Camera::getProjection()
 {
-    glm::mat4 projection = glm::ortho(-400.0f*zoom, 400.0f*zoom, -300.0f*zoom, 300.0f*zoom, -400.0f, 400.0f);
+    glm::mat4 projection = glm::ortho(-4.0f*zoomValue, 4.0f*zoomValue, -3.0f*zoomValue, 3.0f*zoomValue, -400.0f, 400.0f);
     return projection;
 }
 

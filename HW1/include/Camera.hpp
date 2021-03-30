@@ -12,11 +12,12 @@ private:
 
     float yaw;
     float pitch;
-    float zoom;
+    float zoomValue;
 
 public:
     Camera(glm::vec3, float, float);
 
+    void zoom(float);
     void move(float, float);
     
     glm::mat4 getProjection();
@@ -24,5 +25,5 @@ public:
 
     float getYaw() { return yaw; }
     float getPitch() { return pitch; }
-    float getZoom() { return zoom; }
+    float getZoom() { return zoomValue; }
 };

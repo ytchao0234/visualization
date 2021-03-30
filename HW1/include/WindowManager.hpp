@@ -15,6 +15,7 @@ class WindowManager
 private:
     int width;
     int height;
+    bool leftButtonIsPressing;
     GLFWwindow* window;
     Camera *camera;
     CubeModel *cubeModel;
@@ -27,7 +28,8 @@ public:
     void initCallbacks();
     void resizeCallback(GLFWwindow*, int, int);
     void keyCallback(GLFWwindow*, int, int, int, int);
-    void mouseCallback(GLFWwindow*, double, double);
+    void mousePressCallback(GLFWwindow*, int, int, int);
+    void mouseMoveCallback(GLFWwindow*, double, double);
     void scrollCallback(GLFWwindow*, double, double);
 
     void initObjects();

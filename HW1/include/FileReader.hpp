@@ -45,9 +45,6 @@ public:
 template<typename T>
 void FileReader::readRawData(string filename)
 {
-    readInf(filename);
-    this->info->print();
-
     filename = rootPath + filename;
     filename += ".raw";
 
@@ -72,6 +69,9 @@ void FileReader::readRawData(string filename)
     long long int pointer = 0;
     bool toReverse = (endian != info->getEndian()) ? true : false;
     
+    cout << sizeOfValue << endl;
+    cout << sizeof(T) << endl;
+
     for(int x = 0; x < res[2]; x++)
     {
         for(int y = 0; y < res[1]; y++)

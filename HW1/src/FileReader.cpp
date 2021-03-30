@@ -132,6 +132,9 @@ void FileReader::readInf(string filename)
 
 void FileReader::readRawData(string filename)
 {
+    readInf(filename);
+    this->info->print();
+    
     if(info->getValueType() == "ub")
         readRawData<unsigned char>(filename);
     else if(info->getValueType() == "us")
@@ -140,11 +143,11 @@ void FileReader::readRawData(string filename)
         readRawData<unsigned int>(filename);
     else if(info->getValueType() == "b")
         readRawData<char>(filename);
-    else if(info->getValueType() == "b")
+    else if(info->getValueType() == "s")
         readRawData<short>(filename);
-    else if(info->getValueType() == "b")
+    else if(info->getValueType() == "i")
         readRawData<int>(filename);
-    else if(info->getValueType() == "b")
+    else if(info->getValueType() == "f")
         readRawData<float>(filename);
 }
 

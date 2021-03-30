@@ -345,7 +345,7 @@ void Isosurface::draw(glm::mat4 projection, glm::mat4 view)
     shader.setMatrix4("view", glm::value_ptr(view));
     
     glm::mat4 model = glm::mat4(1.0f);
-    // model = glm::rotate(model, glm::radians(40.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+    model = glm::scale(model, glm::vec3(voxelSize[2], voxelSize[1], voxelSize[0]));
     shader.setMatrix4("model", glm::value_ptr(model));
 
     glBindVertexArray(this->VAO);
@@ -382,9 +382,9 @@ void Isosurface::setVertices(vector<float> baseVertex, vector<int> edges)
         direction = glm::vec3( x1-x0, y1-y0, z1-z0 );
         ratio = (isovalue - data[x0][y0][z0]) / (data[x1][y1][z1] - data[x0][y0][z0]);
 
-        vertices.push_back(base.x + ratio * direction.x);
-        vertices.push_back(base.y + ratio * direction.y);
-        vertices.push_back(base.z + ratio * direction.z);
+        vertices.push_back(base.x + ratio * direction.x - int(data.size() / 2));
+        vertices.push_back(base.y + ratio * direction.y - int(data[0].size() / 2));
+        vertices.push_back(base.z + ratio * direction.z - int(data[0][0].size() / 2));
 
         // cout << "(" << vertices[vertices.size()-3] << ", "
         //             << vertices[vertices.size()-2] << ", "
