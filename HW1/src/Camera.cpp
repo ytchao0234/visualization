@@ -17,7 +17,7 @@ Camera::Camera(glm::vec3 position, float yaw, float pitch): zoom(1)
 
 glm::mat4 Camera::getProjection()
 {
-    glm::mat4 projection = glm::ortho(-4.0f*zoom, 4.0f*zoom, -3.0f*zoom, 3.0f*zoom, -400.0f, 400.0f);
+    glm::mat4 projection = glm::ortho(-400.0f*zoom, 400.0f*zoom, -300.0f*zoom, 300.0f*zoom, -400.0f, 400.0f);
     return projection;
 }
 

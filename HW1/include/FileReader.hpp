@@ -3,10 +3,15 @@
 #include <sstream>
 #include <fstream>
 #include <algorithm>
-#include <dirent/dirent.h>
 #include <regex>
 #include <vector>
 #include <FileInfo.hpp>
+
+#ifdef WINDOWS_SYSTEM
+    #include <dirent/dirent.h>
+#else
+    #include <dirent.h>
+#endif
 
 using namespace std;
 
@@ -41,8 +46,6 @@ void FileReader::readRawData(string filename)
 {
     readInf(filename);
     this->info->print();
-
-    cout << "\n--------------------------------------------\n";
 
     filename = rootPath + filename;
     filename += ".raw";

@@ -1,10 +1,24 @@
 #include <Isosurface.hpp>
 
-Isosurface::Isosurface(vector<vector<vector<float>>> data, float value)
+Isosurface::Isosurface(vector<vector<vector<float>>> data, vector<float> voxelSize, float value)
 {
     this->data = data;
+    this->voxelSize = voxelSize;
     this->isovalue = value;
     this->vertices.clear();
+
+    this->offsetFromBaseVertex = 
+    {
+        {0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0},
+        {0, 0, 1}, {1, 0, 1}, {1, 1, 1}, {0, 1, 1},
+    };
+
+    this->vertexOfEdges = 
+    {
+        {0, 1}, {1, 2}, {2, 3}, {3, 0},
+        {4, 5}, {5, 6}, {6, 7}, {7, 4},
+        {0, 4}, {1, 5}, {2, 6}, {3, 7},
+    };
 
     this->lookUpTable = 
     {
@@ -267,17 +281,110 @@ Isosurface::Isosurface(vector<vector<vector<float>>> data, float value)
     };
 }
 
-void Isosurface::marchingCube()
+void Isosurface::bindVertices()
 {
-    
+    glGenVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
+
+    glGenBuffers(1, &VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
 }
 
-void Isosurface::draw()
+void Isosurface::marchingCube()
 {
+    for( int x = 0; x < (int)data.size() - 1; x++)
+    for( int y = 0; y < (int)data[0].size() - 1 ; y++)
+    for( int z = 0; z < (int)data[0][0].size() - 1; z++)
+    {
+        marchSingleCube(x, y, z);
+    }
+}
 
+void Isosurface::marchSingleCube(float x, float y, float z)
+{
+    vector<float> vertexValues =
+    {
+        data[x][y][z]      , data[x+1][y][z]  , data[x+1][y+1][z],
+        data[x][y+1][z]    , data[x][y][z+1]  , data[x+1][y][z+1],
+        data[x+1][y+1][z+1], data[x][y+1][z+1],
+    };
+
+    int compareWithIsovalue = 0;
+
+    for( int i = 0; i < (int)vertexValues.size(); i++ )
+    {
+        if( vertexValues[i] > isovalue )
+        {
+            compareWithIsovalue |= (1 << i);
+        }
+
+    }
+
+    if( compareWithIsovalue == 0 || compareWithIsovalue == 255 )
+        return;
+
+    vector<int> matchOfTable = lookUpTable[compareWithIsovalue];
+
+    for( int i = 0; matchOfTable[i] != -1; i += 3 )
+    {
+        setVertices( { x, y, z },
+                     { matchOfTable[i], matchOfTable[i+1], matchOfTable[i+2] } );
+    }
+
+    bindVertices();
+}
+
+void Isosurface::draw(glm::mat4 projection, glm::mat4 view)
+{
+    Shader shader("src/Shaders/vertex.vert", "src/Shaders/fragment.frag");
+    shader.use();
+
+    shader.setMatrix4("projection", glm::value_ptr(projection));
+    shader.setMatrix4("view", glm::value_ptr(view));
+    
+    glm::mat4 model = glm::mat4(1.0f);
+    // model = glm::rotate(model, glm::radians(40.0f), glm::vec3(1.0f, 1.0f, 1.0f));
+    shader.setMatrix4("model", glm::value_ptr(model));
+
+    glBindVertexArray(this->VAO);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glDrawArrays(GL_TRIANGLES, 0, vertices.size());
 }
 
 void Isosurface::setIsovalue()
 {
 
+}
+
+void Isosurface::setVertices(vector<float> baseVertex, vector<int> edges)
+{
+    glm::vec3 base;
+    glm::vec3 direction;
+    float ratio;
+    
+    float x0, y0, z0, x1, y1, z1;
+
+    for( auto edge: edges )
+    {
+        x0 = baseVertex[0] + offsetFromBaseVertex[vertexOfEdges[edge][0]][0];
+        y0 = baseVertex[1] + offsetFromBaseVertex[vertexOfEdges[edge][0]][1];
+        z0 = baseVertex[2] + offsetFromBaseVertex[vertexOfEdges[edge][0]][2];
+
+        x1 = baseVertex[0] + offsetFromBaseVertex[vertexOfEdges[edge][1]][0];
+        y1 = baseVertex[1] + offsetFromBaseVertex[vertexOfEdges[edge][1]][1];
+        z1 = baseVertex[2] + offsetFromBaseVertex[vertexOfEdges[edge][1]][2];
+
+        base = glm::vec3(x0, y0, z0);
+        direction = glm::vec3( x1-x0, y1-y0, z1-z0 );
+        ratio = (isovalue - data[x0][y0][z0]) / (data[x1][y1][z1] - data[x0][y0][z0]);
+
+        vertices.push_back(base.x + ratio * direction.x);
+        vertices.push_back(base.y + ratio * direction.y);
+        vertices.push_back(base.z + ratio * direction.z);
+    }
 }

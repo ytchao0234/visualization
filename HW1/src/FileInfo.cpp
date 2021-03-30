@@ -10,17 +10,21 @@ void FileInfo::init()
 
 void FileInfo::print() const
 {
-    cout << "resolution:";
-    for(auto res: resolution) cout << " " << res;
+    cout << endl << "FileInfo: " << endl;
+
+    cout << "resolution: ";
+    for(auto res: resolution) cout << res << ", ";
     cout << endl;
 
     cout << "value type: " << valueType.c_str() << endl;
 
-    cout << "voxel size:";
-    for(auto vs: voxelSize) cout << " " << vs;
+    cout << "voxel size: ";
+    for(auto vs: voxelSize) cout << vs << ", ";
     cout << endl;
 
     cout << "endian: " << endian.c_str() << endl;
+
+    cout << "\n-------------------------------------\n";
 }
 
 int FileInfo::getSizeOfValueType() const

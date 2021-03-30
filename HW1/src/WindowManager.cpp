@@ -96,5 +96,5 @@ void WindowManager::initObjects()
     fr->initNameList();
     fr->readRawData("Carp");
 
-    iso = new Isosurface(fr->getData(), 80);
+    iso = new Isosurface(fr->getData(), fr->getInfo()->getVoxelSize(), 80);
 }

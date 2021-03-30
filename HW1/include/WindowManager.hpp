@@ -35,4 +35,5 @@ public:
     GLFWwindow* getWindow() { return window; }
     Camera* getCamera() { return camera; }
     CubeModel* getCube() { return cubeModel; }
+    Isosurface* getIsosurface() { return iso; }
 };
