@@ -94,7 +94,7 @@ void WindowManager::initObjects()
 
     fr = new FileReader("./Data/VolumeData/");
     fr->initNameList();
-    fr->readRawData("Carp");
+    fr->readRawData("engine");
 
     iso = new Isosurface(fr->getData(), fr->getInfo()->getVoxelSize(), 80);
 }

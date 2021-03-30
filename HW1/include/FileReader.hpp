@@ -7,6 +7,7 @@
 #include <vector>
 #include <FileInfo.hpp>
 
+#define WINDOWS_SYSTEM
 #ifdef WINDOWS_SYSTEM
     #include <dirent/dirent.h>
 #else

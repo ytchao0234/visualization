@@ -303,6 +303,8 @@ void Isosurface::marchingCube()
     {
         marchSingleCube(x, y, z);
     }
+
+    bindVertices();
 }
 
 void Isosurface::marchSingleCube(float x, float y, float z)
@@ -325,9 +327,6 @@ void Isosurface::marchSingleCube(float x, float y, float z)
 
     }
 
-    if( compareWithIsovalue == 0 || compareWithIsovalue == 255 )
-        return;
-
     vector<int> matchOfTable = lookUpTable[compareWithIsovalue];
 
     for( int i = 0; matchOfTable[i] != -1; i += 3 )
@@ -335,8 +334,6 @@ void Isosurface::marchSingleCube(float x, float y, float z)
         setVertices( { x, y, z },
                      { matchOfTable[i], matchOfTable[i+1], matchOfTable[i+2] } );
     }
-
-    bindVertices();
 }
 
 void Isosurface::draw(glm::mat4 projection, glm::mat4 view)
@@ -369,6 +366,8 @@ void Isosurface::setVertices(vector<float> baseVertex, vector<int> edges)
     
     float x0, y0, z0, x1, y1, z1;
 
+    // cout << "{ ";
+
     for( auto edge: edges )
     {
         x0 = baseVertex[0] + offsetFromBaseVertex[vertexOfEdges[edge][0]][0];
@@ -386,5 +385,11 @@ void Isosurface::setVertices(vector<float> baseVertex, vector<int> edges)
         vertices.push_back(base.x + ratio * direction.x);
         vertices.push_back(base.y + ratio * direction.y);
         vertices.push_back(base.z + ratio * direction.z);
+
+        // cout << "(" << vertices[vertices.size()-3] << ", "
+        //             << vertices[vertices.size()-2] << ", "
+        //             << vertices[vertices.size()-1] << "), ";
     }
+
+    // cout << "}" << endl;
 }
