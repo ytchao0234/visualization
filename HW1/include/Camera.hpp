@@ -20,9 +20,12 @@ public:
     void zoom(float);
     void move(float, float);
     
-    glm::mat4 getProjection();
+    glm::mat4 getProjection(int, int);
     glm::mat4 getView();
 
+    glm::vec3 getPosition() const { return position; }
+    glm::vec3 getTarget() const { return target; }
+    glm::vec3 getDirection() const { return direction; }
     float getYaw() { return yaw; }
     float getPitch() { return pitch; }
     float getZoom() { return zoomValue; }

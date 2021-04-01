@@ -44,9 +44,25 @@ void Camera::move(float xoffset, float yoffset)
     position = target - direction;
 }
 
-glm::mat4 Camera::getProjection()
+glm::mat4 Camera::getProjection(int width, int height)
 {
-    glm::mat4 projection = glm::ortho(-4.0f*zoomValue, 4.0f*zoomValue, -3.0f*zoomValue, 3.0f*zoomValue, -400.0f, 400.0f);
+    glm::mat4 projection;
+
+    // projection = glm::ortho(-4.0f*zoomValue, 4.0f*zoomValue,
+    //                         -3.0f*zoomValue, 3.0f*zoomValue,
+    //                         -400.0f, 400.0f);
+
+    if( width > height )
+    {
+        projection = glm::ortho(-4.0f*zoomValue, 4.0f*zoomValue,
+                                -3.0f*zoomValue * ((float)height/width), 3.0f*zoomValue * ((float)height/width),
+                                -400.0f, 400.0f);
+    }
+    else
+        projection = glm::ortho(-4.0f*zoomValue * ((float)width/height), 4.0f*zoomValue * ((float)width/height),
+                                -3.0f*zoomValue, 3.0f*zoomValue,
+                                -400.0f, 400.0f);
+
     return projection;
 }
 

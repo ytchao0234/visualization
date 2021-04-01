@@ -5,6 +5,7 @@ WindowManager::WindowManager(string title, int width, int height)
     this->width = width;
     this->height = height;
     this->leftButtonIsPressing = false;
+    this->clipping = { 0.0f, 0.0f, 0.0f, 0.0f };
 
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -60,6 +61,20 @@ void WindowManager::initCallbacks()
     glfwSetScrollCallback(this->window, scrollCb);
 }
 
+void WindowManager::initObjects(string filename, float isovalue)
+{
+
+    camera = new Camera(glm::vec3(0.0f, 0.0f, -10.0f), 90.0f, 0.0f);
+    light = new Light(camera->getPosition(), camera->getDirection());
+    cubeModel = new CubeModel();
+
+    fr = new FileReader("./Data/VolumeData/");
+    fr->initNameList();
+    fr->readRawData(filename);
+
+    iso.push_back(new Isosurface(fr->getData(), fr->getInfo()->getVoxelSize(), isovalue));
+}
+
 void WindowManager::resizeCallback(GLFWwindow* window, int width, int height)
 {
     this->width = width;
@@ -70,6 +85,10 @@ void WindowManager::resizeCallback(GLFWwindow* window, int width, int height)
 
 void WindowManager::keyCallback(GLFWwindow * window, int key, int scancode, int action, int mods)
 {
+    string filename;
+    float isovalue;
+    static char option = 's';
+
     if(action == GLFW_PRESS)
     {
         switch(key)
@@ -77,9 +96,98 @@ void WindowManager::keyCallback(GLFWwindow * window, int key, int scancode, int 
             case GLFW_KEY_ESCAPE:
                 glfwSetWindowShouldClose(this->window, GLFW_TRUE);
                 break;
+
+            case GLFW_KEY_S:
+                for(auto i: iso)
+                    i->setShader("src/Shaders/vertex.vert", "src/Shaders/fragment.frag");
+                break;
+
+            case GLFW_KEY_F:
+                cout << "data file name(exclude file extension): ";
+                cin >> filename;
+                cout << "isovalue: ";
+                cin >> isovalue;
+
+                do
+                {
+                    cout << "multiple or single (m/s): ";
+                    cin >> option;
+                }while(option != 's' && option != 'm');
+
+                fr->readRawData(filename);
+
+                if( option == 's')
+                    iso.clear();
+                
+                iso.push_back(new Isosurface(fr->getData(), fr->getInfo()->getVoxelSize(), isovalue));
+
+                for(auto i: iso)
+                    i->marchingCube();
+                break;
+
+            case GLFW_KEY_I:
+                if(option != 's')
+                    break;
+
+                cout << "isovalue: ";
+                cin >> isovalue;
+
+                iso[0]->setIsovalue(isovalue);
+                iso[0]->marchingCube();
+                break;
+
+            case GLFW_KEY_C:
+                if(makeCrossSection)
+                    makeCrossSection = false;
+                else
+                    makeCrossSection = true;
             default:
                 break;
         }
+    }
+}
+
+void WindowManager::checkKeyPress()
+{
+    if (glfwGetKey(window, GLFW_KEY_KP_1) == GLFW_PRESS ||
+        glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS)
+    {
+        setClippingNormal(0, false);
+    }
+    if (glfwGetKey(window, GLFW_KEY_KP_2) == GLFW_PRESS ||
+        glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS)
+    {
+        setClippingNormal(1, false);
+    }
+    if (glfwGetKey(window, GLFW_KEY_KP_3) == GLFW_PRESS ||
+        glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS)
+    {
+        setClippingNormal(2, false);
+    }
+    if (glfwGetKey(window, GLFW_KEY_KP_4) == GLFW_PRESS ||
+        glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS)
+    {
+        setClippingNormal(0, true);
+    }
+    if (glfwGetKey(window, GLFW_KEY_KP_5) == GLFW_PRESS ||
+        glfwGetKey(window, GLFW_KEY_5) == GLFW_PRESS)
+    {
+        setClippingNormal(1, true);
+    }
+    if (glfwGetKey(window, GLFW_KEY_KP_6) == GLFW_PRESS ||
+        glfwGetKey(window, GLFW_KEY_6) == GLFW_PRESS)
+    {
+        setClippingNormal(2, true);
+    }
+    if (glfwGetKey(window, GLFW_KEY_KP_ADD) == GLFW_PRESS ||
+        glfwGetKey(window, GLFW_KEY_EQUAL) == GLFW_PRESS)
+    {
+        setClippingValue(true);
+    }
+    if (glfwGetKey(window, GLFW_KEY_KP_SUBTRACT) == GLFW_PRESS ||
+        glfwGetKey(window, GLFW_KEY_MINUS) == GLFW_PRESS)
+    {
+        setClippingValue(false);
     }
 }
 
@@ -118,6 +226,8 @@ void WindowManager::mouseMoveCallback(GLFWwindow* window, double xpos, double yp
         yoffset *= sensitivity;
 
         this->camera->move(xoffset, yoffset);
+        this->light->getSpotlight(0)->setPosition(camera->getPosition());
+        this->light->getSpotlight(0)->setDirection(camera->getDirection());
     }
 
     firstPress = true;
@@ -128,14 +238,25 @@ void WindowManager::scrollCallback(GLFWwindow* window, double xoffset, double yo
     camera->zoom(yoffset); 
 }
 
-void WindowManager::initObjects()
+void WindowManager::setClippingNormal(int order, bool increase)
 {
-    camera = new Camera(glm::vec3(0.0f, 0.0f, -10.0f), 90.0f, 0.0f);
-    cubeModel = new CubeModel();
+    if( increase ) clipping[order] += 0.02f;
+    else clipping[order] -= 0.02f;
 
-    fr = new FileReader("./Data/VolumeData/");
-    fr->initNameList();
-    fr->readRawData("engine");
+    glm::vec3 temp = glm::vec3(clipping[0], clipping[1], clipping[2]);
+    temp = glm::normalize(temp);
 
-    iso = new Isosurface(fr->getData(), fr->getInfo()->getVoxelSize(), 80);
+    clipping[0] = temp.x; clipping[1] = temp.y; clipping[2] = temp.z;
+
+    for(auto t: clipping) cout << t << ", ";
+    cout << endl;
+}
+
+void WindowManager::setClippingValue(bool increase)
+{
+    if( increase ) clipping[3]++;
+    else clipping[3]--;
+
+    for(auto t: clipping) cout << t << ", ";
+    cout << endl;
 }

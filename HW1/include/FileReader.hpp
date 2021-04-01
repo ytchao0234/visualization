@@ -68,9 +68,6 @@ void FileReader::readRawData(string filename)
     data.assign(res[2], vector<vector<float>>(res[1], vector<float>(res[0])));
     long long int pointer = 0;
     bool toReverse = (endian != info->getEndian()) ? true : false;
-    
-    cout << sizeOfValue << endl;
-    cout << sizeof(T) << endl;
 
     for(int x = 0; x < res[2]; x++)
     {

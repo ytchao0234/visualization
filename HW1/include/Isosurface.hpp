@@ -16,6 +16,8 @@ private:
     vector<vector<vector<float>>> data;
     vector<float> voxelSize;
     float isovalue;
+
+    Shader *shader;
     unsigned int VAO;
     unsigned int VBO;
     vector<float> vertices;
@@ -26,8 +28,16 @@ public:
     void marchingCube();
     void marchSingleCube(float, float, float);
     void bindVertices();
-    void draw(glm::mat4, glm::mat4);
+    void draw(glm::mat4, glm::mat4, vector<float>, bool);
     
-    void setIsovalue();
+    void setData(vector<vector<vector<float>>>);
+    void setVoxelSize(vector<float>);
+    void setIsovalue(float);
     void setVertices(vector<float>, vector<int>);
+    void setShader(string, string);
+    void setClippingNormal(int, bool);
+    void setClippingValue(bool);
+
+    vector<vector<float>> getGradient(vector<float>);
+    Shader * getShader() { return shader; }
 };

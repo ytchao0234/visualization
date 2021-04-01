@@ -6,6 +6,9 @@ Isosurface::Isosurface(vector<vector<vector<float>>> data, vector<float> voxelSi
     this->voxelSize = voxelSize;
     this->isovalue = value;
     this->vertices.clear();
+    this->shader = new Shader("src/Shaders/vertex.vert", "src/Shaders/fragment.frag");
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
 
     this->offsetFromBaseVertex = 
     {
@@ -283,20 +286,21 @@ Isosurface::Isosurface(vector<vector<vector<float>>> data, vector<float> voxelSi
 
 void Isosurface::bindVertices()
 {
-    glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
-
-    glGenBuffers(1, &VBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
     glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)( 3 * sizeof(float) ));
+    glEnableVertexAttribArray(1);
 }
 
 void Isosurface::marchingCube()
 {
+    vertices.clear();
+
     for( int x = 0; x < (int)data.size() - 1; x++)
     for( int y = 0; y < (int)data[0].size() - 1 ; y++)
     for( int z = 0; z < (int)data[0][0].size() - 1; z++)
@@ -324,7 +328,6 @@ void Isosurface::marchSingleCube(float x, float y, float z)
         {
             compareWithIsovalue |= (1 << i);
         }
-
     }
 
     vector<int> matchOfTable = lookUpTable[compareWithIsovalue];
@@ -336,30 +339,44 @@ void Isosurface::marchSingleCube(float x, float y, float z)
     }
 }
 
-void Isosurface::draw(glm::mat4 projection, glm::mat4 view)
+void Isosurface::draw(glm::mat4 projection, glm::mat4 view, vector<float> clipping, bool makeCrossSection)
 {
-    Shader shader("src/Shaders/vertex.vert", "src/Shaders/fragment.frag");
-    shader.use();
+    shader->use();
 
-    shader.setMatrix4("projection", glm::value_ptr(projection));
-    shader.setMatrix4("view", glm::value_ptr(view));
+    shader->setMatrix4("projection", glm::value_ptr(projection));
+    shader->setMatrix4("view", glm::value_ptr(view));
     
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::scale(model, glm::vec3(voxelSize[2], voxelSize[1], voxelSize[0]));
-    shader.setMatrix4("model", glm::value_ptr(model));
+    shader->setMatrix4("model", glm::value_ptr(model));
+
+    shader->setFloatVec("clipping", clipping, 4);
+    shader->setBool("makeCrossSection", makeCrossSection);
 
     glBindVertexArray(this->VAO);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glDrawArrays(GL_TRIANGLES, 0, vertices.size() / 6);
 }
 
-void Isosurface::setIsovalue()
+void Isosurface::setData(vector<vector<vector<float>>> data)
 {
+    this->data = data;
+}
 
+void Isosurface::setVoxelSize(vector<float> voxelSize)
+{
+    this->voxelSize = voxelSize;
+}
+
+void Isosurface::setIsovalue(float isovalue)
+{
+    this->isovalue = isovalue;
 }
 
 void Isosurface::setVertices(vector<float> baseVertex, vector<int> edges)
 {
+    vector<vector<float>> gradient = getGradient(baseVertex);
+
     glm::vec3 base;
     glm::vec3 direction;
     float ratio;
@@ -386,10 +403,73 @@ void Isosurface::setVertices(vector<float> baseVertex, vector<int> edges)
         vertices.push_back(base.y + ratio * direction.y - int(data[0].size() / 2));
         vertices.push_back(base.z + ratio * direction.z - int(data[0][0].size() / 2));
 
+        glm::vec3 grad = glm::vec3(gradient[vertexOfEdges[edge][0]][0] * (1.0f-ratio) +
+                                   gradient[vertexOfEdges[edge][1]][0] * ratio,
+                                   gradient[vertexOfEdges[edge][0]][1] * (1.0f-ratio) +
+                                   gradient[vertexOfEdges[edge][1]][1] * ratio,
+                                   gradient[vertexOfEdges[edge][0]][2] * (1.0f-ratio) +
+                                   gradient[vertexOfEdges[edge][1]][2] * ratio);
+        
+        grad = glm::normalize(grad);
+
+        vertices.push_back(grad.x);
+        vertices.push_back(grad.y);
+        vertices.push_back(grad.z);
+
         // cout << "(" << vertices[vertices.size()-3] << ", "
         //             << vertices[vertices.size()-2] << ", "
         //             << vertices[vertices.size()-1] << "), ";
     }
 
     // cout << "}" << endl;
+}
+
+void Isosurface::setShader(string vert, string frag)
+{
+    delete shader;
+    shader = new Shader(vert.c_str(), frag.c_str());
+}
+
+vector<vector<float>> Isosurface::getGradient(vector<float> baseVertex)
+{
+    static const int nVertex = 8;
+    vector<vector<float>> gradient(nVertex, vector<float>(3, 0));
+    
+    static float x, y, z;
+
+    for( int i = 0; i < nVertex; i++ )
+    {
+        x = baseVertex[0] + offsetFromBaseVertex[i][0];
+        y = baseVertex[1] + offsetFromBaseVertex[i][1];
+        z = baseVertex[2] + offsetFromBaseVertex[i][2];
+
+        if( x-1 > 0 && x+1 < data.size() )
+            gradient[i][0] = (data[x+1][y][z] - data[x-1][y][z]) / voxelSize[2] / 2.0f;
+        else if( x+1 < data.size())
+            gradient[i][0] = (data[x+1][y][z] - data[x][y][z]) / voxelSize[2];
+        else if( x-1 > 0 )
+            gradient[i][0] = (data[x][y][z] - data[x-1][y][z]) / voxelSize[2];
+        else
+            cout << "gradient not found: x = " << x << endl;
+
+        if( y-1 > 0 && y+1 < data[0].size() )
+            gradient[i][1] = (data[x][y+1][z] - data[x][y-1][z]) / voxelSize[1] / 2.0f;
+        else if( y+1 < data[0].size())
+            gradient[i][1] = (data[x][y+1][z] - data[x][y][z]) / voxelSize[1];
+        else if( y-1 > 0 )
+            gradient[i][1] = (data[x][y][z] - data[x][y-1][z]) / voxelSize[1];
+        else
+            cout << "gradient not found: y = " << y << endl;
+
+        if( z-1 > 0 && z+1 < data[0][0].size() )
+            gradient[i][2] = (data[x][y][z+1] - data[x][y][z-1]) / voxelSize[0] / 2.0f;
+        else if( z+1 < data[0][0].size())
+            gradient[i][2] = (data[x][y][z+1] - data[x][y][z]) / voxelSize[0];
+        else if( z-1 > 0 )
+            gradient[i][2] = (data[x][y][z] - data[x][y][z-1]) / voxelSize[0];
+        else
+            cout << "gradient not found: z = " << z << endl;
+    }
+
+    return gradient;
 }
