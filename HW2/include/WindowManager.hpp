@@ -9,13 +9,21 @@
 #include <FileReader.hpp>
 #include <Isosurface.hpp>
 
+#include <imgui/imgui.h>
+#include <imgui/imgui_impl_glfw.h>
+#include <imgui/imgui_impl_opengl3.h>
+
+#include <implot/implot.h>
+
 using namespace std;
 
 class WindowManager
 {
 private:
+    string title;
     int width;
     int height;
+    string glslVersion;
     bool leftButtonIsPressing;
     vector<float> clipping;
     bool makeCrossSection;
@@ -27,10 +35,15 @@ private:
     vector<Isosurface *> iso;
 
 public:
-    WindowManager(string, int, int);
+    WindowManager(string, int, int, string);
+    ~WindowManager();
+
+    void initGUI();
+    void renderGUI(vector<string>, vector<string>);
 
     void initCallbacks();
-    void initObjects(string, float);
+    void initObjects();
+
     void resizeCallback(GLFWwindow*, int, int);
     void keyCallback(GLFWwindow*, int, int, int, int);
     void checkKeyPress();
@@ -49,5 +62,6 @@ public:
     Camera* getCamera() { return camera; }
     Light * getLight() { return light; }
     CubeModel* getCube() { return cubeModel; }
+    FileReader* getFileReader() { return fr; }
     vector<Isosurface *> getIsosurface() { return iso; }
 };

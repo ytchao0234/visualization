@@ -3,10 +3,16 @@
 FileReader::FileReader(string rootPath)
 {
     this->rootPath = rootPath;
-    nameList.clear();
+    infNameList.clear();
+    rawNameList.clear();
     info = new FileInfo();
     data.clear();
     endian = isBigEndian() ? "big" : "little";
+    histogram.clear();
+    minValue = 0;
+    maxValue = 0;
+    offset = 0;
+    maxNum = 0;
 }
 
 bool FileReader::isBigEndian()
@@ -49,11 +55,22 @@ void FileReader::initNameList()
         if(strstr(entry->d_name, ".inf") != NULL)
         {
             fullname = entry->d_name;
-            nameList.push_back(fullname.substr(0, fullname.length() - 4));
+            infNameList.push_back(fullname.substr(0, fullname.length() - 4));
+        }
+        else if(strstr(entry->d_name, ".raw") != NULL)
+        {
+            fullname = entry->d_name;
+            rawNameList.push_back(fullname.substr(0, fullname.length() - 4));
         }
     }
 
     closedir(dirp);
+}
+
+void FileReader::readFile(string infFile, string rawFile)
+{
+    readInf(infFile);
+    readRawData(rawFile);
 }
 
 void FileReader::readInf(string filename)
@@ -128,13 +145,12 @@ void FileReader::readInf(string filename)
     }
 
     fs.close();
+
+    info->print();
 }
 
 void FileReader::readRawData(string filename)
-{
-    readInf(filename);
-    this->info->print();
-    
+{    
     if(info->getValueType() == "ub")
         readRawData<unsigned char>(filename);
     else if(info->getValueType() == "us")

@@ -347,7 +347,7 @@ void Isosurface::draw(glm::mat4 projection, glm::mat4 view, vector<float> clippi
     shader->setMatrix4("view", glm::value_ptr(view));
     
     glm::mat4 model = glm::mat4(1.0f);
-    model = glm::scale(model, glm::vec3(voxelSize[2], voxelSize[1], voxelSize[0]));
+    model = glm::scale(model, glm::vec3(voxelSize[2], voxelSize[1], voxelSize[1]));
     shader->setMatrix4("model", glm::value_ptr(model));
 
     shader->setFloatVec("clipping", clipping, 4);

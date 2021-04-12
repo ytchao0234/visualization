@@ -1,6 +1,6 @@
 #include <Camera.hpp>
 
-Camera::Camera(glm::vec3 position, float yaw, float pitch): zoomValue(50)
+Camera::Camera(glm::vec3 position, float yaw, float pitch): zoomValue(25)
 {
     this->position = position;
     this->yaw = yaw;
@@ -21,8 +21,8 @@ void Camera::zoom( float value )
 
     if (zoomValue < 1.0f)
         zoomValue = 1.0f;
-    else if (zoomValue > 100.0f)
-        zoomValue = 100.0f;
+    else if (zoomValue > 50.0f)
+        zoomValue = 50.0f;
 }
 
 void Camera::move(float xoffset, float yoffset)
@@ -48,19 +48,17 @@ glm::mat4 Camera::getProjection(int width, int height)
 {
     glm::mat4 projection;
 
-    // projection = glm::ortho(-4.0f*zoomValue, 4.0f*zoomValue,
-    //                         -3.0f*zoomValue, 3.0f*zoomValue,
-    //                         -400.0f, 400.0f);
+    // projection = glm::perspective(45.0f, (float)width/height, 0.1f, 400.0f);
 
     if( width > height )
     {
-        projection = glm::ortho(-4.0f*zoomValue, 4.0f*zoomValue,
-                                -3.0f*zoomValue * ((float)height/width), 3.0f*zoomValue * ((float)height/width),
+        projection = glm::ortho(-10.0f*zoomValue, 10.0f*zoomValue,
+                                -10.0f*zoomValue * ((float)height/width), 10.0f*zoomValue * ((float)height/width),
                                 -400.0f, 400.0f);
     }
     else
-        projection = glm::ortho(-4.0f*zoomValue * ((float)width/height), 4.0f*zoomValue * ((float)width/height),
-                                -3.0f*zoomValue, 3.0f*zoomValue,
+        projection = glm::ortho(-10.0f*zoomValue * ((float)width/height), 10.0f*zoomValue * ((float)width/height),
+                                -10.0f*zoomValue, 10.0f*zoomValue,
                                 -400.0f, 400.0f);
 
     return projection;

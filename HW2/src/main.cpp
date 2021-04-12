@@ -5,17 +5,10 @@ int main()
     string filename;
     float isovalue;
 
-    cout << "data file name(exclude file extension): ";
-    cin >> filename;
-    cout << "isovalue: ";
-    cin >> isovalue;
-
-    WindowManager wm("Isosurface", 800, 600);
+    WindowManager wm("Isosurface", 1200, 900, "#version 460");
+    wm.initGUI();
+    wm.initObjects();
     wm.initCallbacks();
-
-    wm.initObjects(filename, isovalue);
-
-    (wm.getIsosurface())[0]->marchingCube();
 
     while(!glfwWindowShouldClose(wm.getWindow()))
     {
@@ -28,6 +21,8 @@ int main()
             wm.getLight()->lighting(iso->getShader(), wm.getCamera()->getPosition());
             iso->draw(wm.getCamera()->getProjection(wm.getWidth(), wm.getHeight()), wm.getCamera()->getView(), wm.getClipping(), wm.getMakeCrossSection());
         }
+
+        wm.renderGUI(wm.getFileReader()->getInfNameList(), wm.getFileReader()->getRawNameList());
 
         wm.checkKeyPress();
         glfwPollEvents();

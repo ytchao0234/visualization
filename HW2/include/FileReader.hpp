@@ -20,25 +20,38 @@ class FileReader
 {
 private:
     string rootPath;
-    vector<string> nameList;
+    vector<string> infNameList;
+    vector<string> rawNameList;
     FileInfo *info;
     vector<vector<vector<float>>> data;
+    vector<float> histogram;
+    float minValue;
+    float maxValue;
+    int offset;
+    int maxNum;
     string endian;
 
 public:
     FileReader(string);
 
     void initNameList();
-
     bool isBigEndian();
+    
+    void readFile(string, string);
     void readInf(string);
-
     void readRawData(string);
     template<typename T>
     void readRawData(string);
     void printRawData() const;
 
+    vector<string> getInfNameList() const { return infNameList; }
+    vector<string> getRawNameList() const { return rawNameList; }
     FileInfo * getInfo() const { return info; }
+    vector<float> getHistogram() const { return histogram; }
+    float getMinValue() const { return minValue; }
+    float getMaxValue() const { return maxValue; }
+    float getMaxNum() const { return maxNum; }
+    int getOffset() const { return offset; }
     vector<vector<vector<float>>> getData() const { return data; }
 };
 
@@ -69,21 +82,36 @@ void FileReader::readRawData(string filename)
     long long int pointer = 0;
     bool toReverse = (endian != info->getEndian()) ? true : false;
 
+    minValue = numeric_limits<float>::max();
+    maxValue = numeric_limits<float>::min();
+
     for(int x = 0; x < res[2]; x++)
+    for(int y = 0; y < res[1]; y++)
+    for(int z = 0; z < res[0]; z++)
     {
-        for(int y = 0; y < res[1]; y++)
-        {
-            for(int z = 0; z < res[0]; z++)
-            {
-                if(toReverse)
-                    reverse(buffer + pointer, buffer + pointer + sizeOfValue);
+        if(toReverse)
+            reverse(buffer + pointer, buffer + pointer + sizeOfValue);
 
-                T rawData;
-                memcpy(&rawData, buffer + pointer, sizeOfValue);
-                pointer += sizeOfValue;
+        T rawData;
+        memcpy(&rawData, buffer + pointer, sizeOfValue);
+        pointer += sizeOfValue;
 
-                data[x][y][z] = (float) rawData;
-            }
-        }
+        data[x][y][z] = (float) rawData;
+
+        minValue = min(minValue, data[x][y][z]);
+        maxValue = max(maxValue, data[x][y][z]);
+    }
+
+    offset = 0 - (int)minValue;
+    maxNum = 0;
+    histogram.assign((int)(maxValue - minValue) + 1, 0);
+
+    for(int x = 0; x < res[2]; x++)
+    for(int y = 0; y < res[1]; y++)
+    for(int z = 0; z < res[0]; z++)
+    {
+        histogram[(int)data[x][y][z] + offset] ++;
+
+        maxNum = max(maxValue, histogram[(int)data[x][y][z] + offset]);
     }
 }
