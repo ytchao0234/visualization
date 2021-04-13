@@ -166,7 +166,7 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
         ImPlot::SetNextPlotLimits(-0.5, 9.5, 0, 110, ImGuiCond_Once);
         ImPlot::SetNextPlotTicksX(positions, 10, labels);
 
-        if (ImPlot::BeginPlot("Bar Plot", horz ? "Score":  "Student", horz ? "Student" : "Score")) {
+        if (ImPlot::BeginPlot("Bar Plot", "Student", "Score")) {
             static float midtm[10] = {83, 67, 23, 89, 83, 78, 91, 82, 85, 90};
             
             ImPlot::PlotBars("Midterm Exam", midtm, 10, 0.2f, -0.2f);
