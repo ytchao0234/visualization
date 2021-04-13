@@ -1,8 +1,9 @@
 #include <Isosurface.hpp>
 
-Isosurface::Isosurface(vector<vector<vector<float>>> data, vector<float> voxelSize, float value)
+Isosurface::Isosurface(vector<vector<vector<float>>> data, vector<vector<vector<vector<float>>>> gradient, vector<float> voxelSize, float value)
 {
     this->data = data;
+    this->gradient = gradient;
     this->voxelSize = voxelSize;
     this->isovalue = value;
     this->vertices.clear();
@@ -335,7 +336,7 @@ void Isosurface::marchSingleCube(float x, float y, float z)
     for( int i = 0; matchOfTable[i] != -1; i += 3 )
     {
         setVertices( { x, y, z },
-                     { matchOfTable[i], matchOfTable[i+1], matchOfTable[i+2] } );
+                     { matchOfTable[i], matchOfTable[i+1], matchOfTable[i+2] });
     }
 }
 
@@ -358,11 +359,6 @@ void Isosurface::draw(glm::mat4 projection, glm::mat4 view, vector<float> clippi
     glDrawArrays(GL_TRIANGLES, 0, vertices.size() / 6);
 }
 
-void Isosurface::setData(vector<vector<vector<float>>> data)
-{
-    this->data = data;
-}
-
 void Isosurface::setVoxelSize(vector<float> voxelSize)
 {
     this->voxelSize = voxelSize;
@@ -375,7 +371,7 @@ void Isosurface::setIsovalue(float isovalue)
 
 void Isosurface::setVertices(vector<float> baseVertex, vector<int> edges)
 {
-    vector<vector<float>> gradient = getGradient(baseVertex);
+    // vector<vector<float>> gradient = getGradient(baseVertex);
 
     glm::vec3 base;
     glm::vec3 direction;
@@ -403,12 +399,12 @@ void Isosurface::setVertices(vector<float> baseVertex, vector<int> edges)
         vertices.push_back(base.y + ratio * direction.y - int(data[0].size() / 2));
         vertices.push_back(base.z + ratio * direction.z - int(data[0][0].size() / 2));
 
-        glm::vec3 grad = glm::vec3(gradient[vertexOfEdges[edge][0]][0] * (1.0f-ratio) +
-                                   gradient[vertexOfEdges[edge][1]][0] * ratio,
-                                   gradient[vertexOfEdges[edge][0]][1] * (1.0f-ratio) +
-                                   gradient[vertexOfEdges[edge][1]][1] * ratio,
-                                   gradient[vertexOfEdges[edge][0]][2] * (1.0f-ratio) +
-                                   gradient[vertexOfEdges[edge][1]][2] * ratio);
+        glm::vec3 grad = glm::vec3(gradient[x0][y0][z0][0] * (1.0f-ratio) +
+                                   gradient[x1][y1][z1][0] * ratio,
+                                   gradient[x0][y0][z0][1] * (1.0f-ratio) +
+                                   gradient[x1][y1][z1][1] * ratio,
+                                   gradient[x0][y0][z0][2] * (1.0f-ratio) +
+                                   gradient[x1][y1][z1][2] * ratio);
         
         grad = glm::normalize(grad);
 

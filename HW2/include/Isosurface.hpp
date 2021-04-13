@@ -14,6 +14,7 @@ private:
     vector<vector<int>> offsetFromBaseVertex;
     vector<vector<int>> vertexOfEdges;
     vector<vector<vector<float>>> data;
+    vector<vector<vector<vector<float>>>> gradient;
     vector<float> voxelSize;
     float isovalue;
 
@@ -23,14 +24,13 @@ private:
     vector<float> vertices;
 
 public:
-    Isosurface(vector<vector<vector<float>>>, vector<float>, float);
+    Isosurface(vector<vector<vector<float>>>, vector<vector<vector<vector<float>>>>, vector<float>, float);
 
     void marchingCube();
     void marchSingleCube(float, float, float);
     void bindVertices();
     void draw(glm::mat4, glm::mat4, vector<float>, bool);
     
-    void setData(vector<vector<vector<float>>>);
     void setVoxelSize(vector<float>);
     void setIsovalue(float);
     void setVertices(vector<float>, vector<int>);

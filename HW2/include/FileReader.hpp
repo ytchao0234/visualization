@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <regex>
 #include <vector>
+#include <cmath>
+#include <glm/glm.hpp>
 #include <FileInfo.hpp>
 
 #define WINDOWS_SYSTEM
@@ -23,15 +25,27 @@ private:
     vector<string> infNameList;
     vector<string> rawNameList;
     FileInfo *info;
-    vector<vector<vector<float>>> data;
-    vector<float> histogram;
-    float minValue;
-    float maxValue;
-    int offset;
-    int maxNum;
     string endian;
+    vector<vector<vector<float>>> data;
+    vector<vector<vector<vector<float>>>> dataGradient;
+
+    vector<float> iHistogram;
+    vector<float> logIHistogram;
+    float iMin;
+    float iMax;
+    int offset;
+    float iMaxNum;
+    float logIMaxNum;
+
+    vector<vector<float>> heatMap;
+    float* heatMap_array;
+    float gMin;
+    float gMax;
+    float gMaxLimit;
+    float hMaxNum;
 
 public:
+
     FileReader(string);
 
     void initNameList();
@@ -42,17 +56,30 @@ public:
     void readRawData(string);
     template<typename T>
     void readRawData(string);
+    void calcuGradient();
+    void calcuGraph();
     void printRawData() const;
+
+    void setGMaxLimit(float limit) { gMaxLimit = limit; }
 
     vector<string> getInfNameList() const { return infNameList; }
     vector<string> getRawNameList() const { return rawNameList; }
     FileInfo * getInfo() const { return info; }
-    vector<float> getHistogram() const { return histogram; }
-    float getMinValue() const { return minValue; }
-    float getMaxValue() const { return maxValue; }
-    float getMaxNum() const { return maxNum; }
-    int getOffset() const { return offset; }
     vector<vector<vector<float>>> getData() const { return data; }
+    vector<vector<vector<vector<float>>>> getDataGradient() const { return dataGradient; }
+    vector<float> getIHistogram() const { return iHistogram; }
+    vector<float> getLogIHistogram() const { return logIHistogram; }
+    float getIMin() const { return iMin; }
+    float getIMax() const { return iMax; }
+    float getIMaxNum() const { return iMaxNum; }
+    float getLogIMaxNum() const { return logIMaxNum; }
+    int getOffset() const { return offset; }
+    float* getHeatMap() const { return heatMap_array; }
+    int getHeatMapRows() const { return heatMap.size(); }
+    int getHeatMapCols() const { return heatMap[0].size(); }
+    float getGMin() const { return gMin; }
+    float getGMax() const { return gMax; }
+    float getHMaxNum() const { return hMaxNum; }
 };
 
 template<typename T>
@@ -82,9 +109,6 @@ void FileReader::readRawData(string filename)
     long long int pointer = 0;
     bool toReverse = (endian != info->getEndian()) ? true : false;
 
-    minValue = numeric_limits<float>::max();
-    maxValue = numeric_limits<float>::min();
-
     for(int x = 0; x < res[2]; x++)
     for(int y = 0; y < res[1]; y++)
     for(int z = 0; z < res[0]; z++)
@@ -97,28 +121,7 @@ void FileReader::readRawData(string filename)
         pointer += sizeOfValue;
 
         data[x][y][z] = (float) rawData;
-
-        minValue = min(minValue, data[x][y][z]);
-        maxValue = max(maxValue, data[x][y][z]);
     }
 
-    offset = 0 - (int)minValue;
-    histogram.assign((int)(maxValue - minValue) + 1, 0);
-
-    for(int x = 0; x < res[2]; x++)
-    for(int y = 0; y < res[1]; y++)
-    for(int z = 0; z < res[0]; z++)
-    {
-        histogram[(int)data[x][y][z] + offset] ++;
-    }
-
-    maxNum = 0;
-
-    for(int i = 0; i < histogram.size(); i++)
-    {
-        cout << histogram[i] << endl;
-        histogram[i] = logf(histogram[i]);
-        maxNum = max(maxNum, histogram[i]);
-        cout << "\t" << histogram[i] << endl;
-    }
+    calcuGraph();
 }

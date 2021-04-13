@@ -2,9 +2,6 @@
 
 int main()
 {
-    string filename;
-    float isovalue;
-
     WindowManager wm("Isosurface", 1200, 900, "#version 460");
     wm.initGUI();
     wm.initObjects();

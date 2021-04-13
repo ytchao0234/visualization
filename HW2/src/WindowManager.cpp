@@ -94,7 +94,7 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
 
         if (ImGui::BeginCombo(".raw", selectedRaw))
         {
-            for (int i = 0; i < rawFileList.size(); i++)
+            for (int i = 0; i < (int)rawFileList.size(); i++)
             {
                 if(strstr(rawFileList[i].c_str(), selectedInf))
                 {
@@ -113,14 +113,14 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
         }
 
         ImGui::Text("Isovalue:");
-        ImGui::Text("%s", to_string((int)(fr->getMinValue())).c_str());
+        ImGui::Text("%s", to_string((int)(fr->getIMin())).c_str());
         ImGui::SameLine();
-        ImGui::SliderInt(to_string((int)(fr->getMaxValue())).c_str(), &isovalue, fr->getMinValue(), fr->getMaxValue());
+        ImGui::SliderInt(to_string((int)(fr->getIMax())).c_str(), &isovalue, fr->getIMin(), fr->getIMax());
 
         if(ImGui::Button("Load Single"))
         {
             iso.clear();
-            iso.push_back(new Isosurface(fr->getData(), fr->getInfo()->getVoxelSize(), isovalue));
+            iso.push_back(new Isosurface(fr->getData(), fr->getDataGradient(), fr->getInfo()->getVoxelSize(), isovalue));
             iso.back()->marchingCube();
         }
 
@@ -128,7 +128,7 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
 
         if(ImGui::Button("Load Multiple"))
         {
-            iso.push_back(new Isosurface(fr->getData(), fr->getInfo()->getVoxelSize(), isovalue));
+            iso.push_back(new Isosurface(fr->getData(), fr->getDataGradient(), fr->getInfo()->getVoxelSize(), isovalue));
             iso.back()->marchingCube();
         }
 
@@ -154,56 +154,94 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
         ImGui::Checkbox("make cross-section", &makeCrossSection);
     } ImGui::End();
 
-    ImGui::SetNextWindowPos(ImVec2(width - 300 - 10, 10), ImGuiCond_Once);
-    ImGui::SetNextWindowSize(ImVec2(300, 300), ImGuiCond_Once);
+    ImGui::SetNextWindowPos(ImVec2(10, height - 450 - 10), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(450, 450), ImGuiCond_Once);
 
-    ImGui::Begin("Histogram");
+    ImGui::Begin("Graph");
     {
-        // ImGui::PlotHistogram("", fr->getHistogram().data(), fr->getHistogram().size(), 0, "", 0.0f, (float)(fr->getMaxNum()), ImVec2(285, 250));
-        // static const char* labels[] = {"S1","S2","S3","S4","S5","S6","S7","S8","S9","S10"};
-        // static const double positions[] = {0,1,2,3,4,5,6,7,8,9};
+        if(ImGui::CollapsingHeader("Histogram"))
+        {
+            static bool toLog = true;
+            ImGui::Checkbox("Log", &toLog);
 
-        ImPlot::SetNextPlotLimits(fr->getMinValue(), fr->getMaxValue(), 0, fr->getMaxNum(), ImGuiCond_Always);
-        // ImPlot::SetNextPlotTicksX(positions, 10, labels);
+            static bool changeHistogram = false;
+            ImGui::Checkbox("ImGui Histogram", &changeHistogram);
 
-        if (ImPlot::BeginPlot("", "Intensity", "Number")) {
-            
-            ImPlot::PlotBars("Intensity", fr->getHistogram().data(), fr->getHistogram().size());
+            if(changeHistogram)
+            {
+                if(toLog)
+                    ImGui::PlotHistogram("", fr->getLogIHistogram().data(), fr->getLogIHistogram().size(),
+                                         0, "Frequency of Intensity", 0.0f,
+                                         (float)(fr->getLogIMaxNum()), ImVec2(430, 300));
+                else
+                    ImGui::PlotHistogram("", fr->getIHistogram().data(), fr->getIHistogram().size(),
+                                         0, "Frequency of Intensity", 0.0f,
+                                         (float)(fr->getIMaxNum()), ImVec2(430, 300));
+            }
+            else
+            {
+                if(toLog)
+                {
+                    ImPlot::SetNextPlotLimits(fr->getIMin(), fr->getIMax(), 0.0f, fr->getLogIMaxNum(), ImGuiCond_Always);
 
-            ImPlot::EndPlot();
+                    if (ImPlot::BeginPlot("Frequency of Intensity", "Intensity", "Number")) {
+                        
+                        ImPlot::PlotBars("frequency", fr->getLogIHistogram().data(), fr->getLogIHistogram().size(), 0.67f, 0.0f, -(int)(fr->getIMin()));
+
+                        ImPlot::EndPlot();
+                    }
+                }
+                else
+                {
+                    ImPlot::SetNextPlotLimits(fr->getIMin(), fr->getIMax(), 0.0f, fr->getIMaxNum(), ImGuiCond_Always);
+
+                    if (ImPlot::BeginPlot("Frequency of Intensity", "Intensity", "Number")) {
+                        
+                        ImPlot::PlotBars("frequency", fr->getIHistogram().data(), fr->getIHistogram().size(), 0.67f, 0.0f, -(int)(fr->getIMin()));
+
+                        ImPlot::EndPlot();
+                    }
+                }
+            }
         }
-    }ImGui::End();
 
-    ImGui::SetNextWindowPos(ImVec2(width - 300 - 10, 350), ImGuiCond_Once);
-    ImGui::SetNextWindowSize(ImVec2(300, 300), ImGuiCond_Once);
+        if(ImGui::CollapsingHeader("Heat Map"))
+        {
+            static float gMaxLimit = fr->getGMax();
+            ImGui::InputFloat("gMax", &gMaxLimit);
 
-    ImGui::Begin("Heap Map");
-    {
-        static float values1[7][7] = {{0.8f, 2.4f, 2.5f, 3.9f, 0.0f, 4.0f, 0.0f},
-                                    {2.4f, 0.0f, 4.0f, 1.0f, 2.7f, 0.0f, 0.0f},
-                                    {1.1f, 2.4f, 0.8f, 4.3f, 1.9f, 4.4f, 0.0f},
-                                    {0.6f, 0.0f, 0.3f, 0.0f, 3.1f, 0.0f, 0.0f},
-                                    {0.7f, 1.7f, 0.6f, 2.6f, 2.2f, 6.2f, 0.0f},
-                                    {1.3f, 1.2f, 0.0f, 0.0f, 0.0f, 3.2f, 5.1f},
-                                    {0.1f, 2.0f, 0.0f, 1.4f, 0.0f, 1.9f, 6.3f}};
-        static float scale_min = 0;
-        static float scale_max = 6.3f;
-        static ImPlotAxisFlags axes_flags = ImPlotAxisFlags_LockMin | ImPlotAxisFlags_LockMax | ImPlotAxisFlags_TickLabels;
-        static const char* xlabels[] = {"C1","C2","C3","C4","C5","C6","C7"};
-        static const char* ylabels[] = {"R1","R2","R3","R4","R5","R6","R7"};
+            if(ImGui::Button("Reload Heat Map"))
+            {
+                fr->setGMaxLimit(gMaxLimit);
+                fr->calcuGraph();
+            }
 
-        ImPlot::SetNextPlotTicksX(0 + 1.0/14.0, 1 - 1.0/14.0, 7, xlabels);
-        ImPlot::SetNextPlotTicksY(1- 1.0/14.0, 0 + 1.0/14.0, 7,  ylabels);
+            ImGui::SameLine();
 
-        if (ImPlot::BeginPlot("##Heatmap1",NULL,NULL,ImVec2(225,225),0,axes_flags,axes_flags)) {
-            ImPlot::PlotHeatmap("heat",values1[0],7,7,scale_min,scale_max);
-            ImPlot::EndPlot();
+            if(ImGui::Button("Reset"))
+            {
+                fr->setGMaxLimit(0);
+                fr->calcuGraph();
+                gMaxLimit = fr->getGMax();
+            }
+
+            static ImVec4 gray[2] = {ImVec4(0,0,0,1), ImVec4(1,1,1,1)};
+            ImPlot::SetColormap(gray, 2);
+
+            static ImPlotAxisFlags axes_flags = ImPlotAxisFlags_LockMin | ImPlotAxisFlags_LockMax | ImPlotAxisFlags_TickLabels;
+
+            ImPlot::SetNextPlotLimits(fr->getGMin(), fr->getGMax(), fr->getIMin(), fr->getIMax(), ImGuiCond_Always);
+
+            if (ImPlot::BeginPlot("","Decibel","Intensity",ImVec2(320,320),0,axes_flags,axes_flags))
+            {
+                ImPlot::PlotHeatmap("frequency",fr->getHeatMap(),fr->getHeatMapRows(),fr->getHeatMapCols(),0, fr->getHMaxNum(),
+                                    NULL, ImPlotPoint(fr->getGMin(),fr->getIMin()), ImPlotPoint(fr->getGMax(),fr->getIMax()));
+                ImPlot::EndPlot();
+            }
+            ImGui::SameLine();
+            ImPlot::ShowColormapScale(0, fr->getHMaxNum(), 320);
+            ImPlot::SetColormap(ImPlotColormap_Default);
         }
-        ImGui::SameLine();
-        ImPlot::ShowColormapScale(scale_min, scale_max, 225);
-        static ImVec4 gray[2] = {ImVec4(0,0,0,1), ImVec4(1,1,1,1)};
-        ImPlot::SetColormap(&gray[0], 2);
-
     }ImGui::End();
 
     ImGui::Render();
@@ -262,10 +300,6 @@ void WindowManager::resizeCallback(GLFWwindow* window, int width, int height)
 
 void WindowManager::keyCallback(GLFWwindow * window, int key, int scancode, int action, int mods)
 {
-    string filename;
-    float isovalue;
-    static char option = 's';
-
     if(action == GLFW_PRESS)
     {
         switch(key)
@@ -279,45 +313,6 @@ void WindowManager::keyCallback(GLFWwindow * window, int key, int scancode, int 
                     i->setShader("src/Shaders/vertex.vert", "src/Shaders/fragment.frag");
                 break;
 
-            case GLFW_KEY_F:
-                cout << "data file name(exclude file extension): ";
-                cin >> filename;
-                cout << "isovalue: ";
-                cin >> isovalue;
-
-                do
-                {
-                    cout << "multiple or single (m/s): ";
-                    cin >> option;
-                }while(option != 's' && option != 'm');
-
-                fr->readRawData(filename);
-
-                if( option == 's')
-                    iso.clear();
-                
-                iso.push_back(new Isosurface(fr->getData(), fr->getInfo()->getVoxelSize(), isovalue));
-
-                for(auto i: iso)
-                    i->marchingCube();
-                break;
-
-            case GLFW_KEY_I:
-                if(option != 's')
-                    break;
-
-                cout << "isovalue: ";
-                cin >> isovalue;
-
-                iso[0]->setIsovalue(isovalue);
-                iso[0]->marchingCube();
-                break;
-
-            case GLFW_KEY_C:
-                if(makeCrossSection)
-                    makeCrossSection = false;
-                else
-                    makeCrossSection = true;
             default:
                 break;
         }
