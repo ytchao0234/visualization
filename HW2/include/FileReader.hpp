@@ -111,7 +111,11 @@ void FileReader::readRawData(string filename)
     for(int z = 0; z < res[0]; z++)
     {
         histogram[(int)data[x][y][z] + offset] ++;
+    }
 
-        maxNum = max(maxValue, histogram[(int)data[x][y][z] + offset]);
+    for( int i = 0; i < histogram.size(); i++ )
+    {
+        histogram[i] = log10(histogram[i]);
+        maxNum = max(maxNum, histogram[i]);
     }
 }
