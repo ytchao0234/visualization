@@ -160,16 +160,15 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
     ImGui::Begin("Histogram");
     {
         // ImGui::PlotHistogram("", fr->getHistogram().data(), fr->getHistogram().size(), 0, "", 0.0f, (float)(fr->getMaxNum()), ImVec2(285, 250));
-        static const char* labels[] = {"S1","S2","S3","S4","S5","S6","S7","S8","S9","S10"};
-        static const double positions[] = {0,1,2,3,4,5,6,7,8,9};
+        // static const char* labels[] = {"S1","S2","S3","S4","S5","S6","S7","S8","S9","S10"};
+        // static const double positions[] = {0,1,2,3,4,5,6,7,8,9};
 
-        ImPlot::SetNextPlotLimits(-0.5, 9.5, 0, 110, ImGuiCond_Once);
-        ImPlot::SetNextPlotTicksX(positions, 10, labels);
+        ImPlot::SetNextPlotLimits(fr->getMinValue(), fr->getMaxValue(), 0, fr->getMaxNum(), ImGuiCond_Always);
+        // ImPlot::SetNextPlotTicksX(positions, 10, labels);
 
-        if (ImPlot::BeginPlot("Bar Plot", "Student", "Score")) {
-            static float midtm[10] = {83, 67, 23, 89, 83, 78, 91, 82, 85, 90};
+        if (ImPlot::BeginPlot("", "Intensity", "Number")) {
             
-            ImPlot::PlotBars("Midterm Exam", midtm, 10, 0.2f, -0.2f);
+            ImPlot::PlotBars("Intensity", fr->getHistogram().data(), fr->getHistogram().size());
 
             ImPlot::EndPlot();
         }
