@@ -103,7 +103,6 @@ void FileReader::readRawData(string filename)
     }
 
     offset = 0 - (int)minValue;
-    maxNum = 0;
     histogram.assign((int)(maxValue - minValue) + 1, 0);
 
     for(int x = 0; x < res[2]; x++)
@@ -113,9 +112,13 @@ void FileReader::readRawData(string filename)
         histogram[(int)data[x][y][z] + offset] ++;
     }
 
-    for( int i = 0; i < histogram.size(); i++ )
+    maxNum = 0;
+
+    for(int i = 0; i < histogram.size(); i++)
     {
-        histogram[i] = log10f(histogram[i]);
+        cout << histogram[i] << endl;
+        histogram[i] = logf(histogram[i]);
         maxNum = max(maxNum, histogram[i]);
+        cout << "\t" << histogram[i] << endl;
     }
 }
