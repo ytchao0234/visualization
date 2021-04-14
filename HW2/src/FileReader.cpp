@@ -181,8 +181,6 @@ void FileReader::calcuGradient()
                         vector<float>(3, 0))));
 
     vector<float> voxelSize = info->getVoxelSize();
-    gMin = numeric_limits<float>::max();
-    gMax = numeric_limits<float>::min();
 
     for( int x = 0; x < (int)data.size() - 1; x++ )
     for( int y = 0; y < (int)data[0].size() - 1; y++ )
@@ -214,22 +212,7 @@ void FileReader::calcuGradient()
             dataGradient[x][y][z][2] = (data[x][y][z] - data[x][y][z-1]) / voxelSize[0];
         else
             cout << "dataGradient not found: z = " << z << endl;
-
-        glm::vec3 grad = glm::vec3(dataGradient[x][y][z][0],
-                                   dataGradient[x][y][z][1],
-                                   dataGradient[x][y][z][2]);
-
-        float magnitude = glm::distance(grad, glm::vec3(0.0f));
-
-        gMin = min(gMin, magnitude);
-        gMax = max(gMax, magnitude);
     }
-
-    if(gMin < 1.0f) gMin = 1.0f;
-    if(gMaxLimit > gMin && gMax > gMaxLimit) gMax = gMaxLimit;
-
-    gMin = 20*log2f(gMin);
-    gMax = 20*log2f(gMax);
 }
 
 void FileReader::printRawData() const
@@ -251,15 +234,33 @@ void FileReader::calcuGraph()
     iMin = numeric_limits<float>::max();
     iMax = numeric_limits<float>::min();
 
+    glm::vec3 grad;
+    float magnitude;
+    gMin = numeric_limits<float>::max();
+    gMax = numeric_limits<float>::min();
+
     for(int x = 0; x < (int)data.size(); x++)
     for(int y = 0; y < (int)data[0].size(); y++)
     for(int z = 0; z < (int)data[0][0].size(); z++)
     {
         iMin = min(iMin, data[x][y][z]);
         iMax = max(iMax, data[x][y][z]);
+
+        grad = glm::vec3(dataGradient[x][y][z][0],
+                         dataGradient[x][y][z][1],
+                         dataGradient[x][y][z][2]);
+
+        magnitude = glm::distance(grad, glm::vec3(0.0f));
+
+        gMin = min(gMin, magnitude);
+        gMax = max(gMax, magnitude);
     }
 
-    calcuGradient();
+    if(gMin < 1.0f) gMin = 1.0f;
+    
+    if(gMaxLimit - 0.0f < 0.001f) gMaxLimit = gMax;
+    else if(gMaxLimit > gMax) gMaxLimit = gMax;
+    else if(gMaxLimit < gMin) gMaxLimit = gMin;
 
     offset = 0 - (int)iMin;
     iHistogram.assign((int)(iMax - iMin) + 1, 0);
@@ -285,10 +286,8 @@ void FileReader::calcuGraph()
         logIMaxNum = max(logIMaxNum, logIHistogram[i]);
     }
 
-    heatMap.assign(iHistogram.size(), vector<float>((int)(gMax - gMin), 0));
-    
-    float magnitude = 0;
-    glm::vec3 grad;
+    heatMap.assign((int)(20*log2f(gMaxLimit) - 20*log2f(gMin)) + 1, vector<float>(iHistogram.size(), 0));
+
     hMaxNum = 0;
 
     for(int x = 0; x < (int)data.size(); x++)
@@ -300,13 +299,18 @@ void FileReader::calcuGraph()
                          dataGradient[x][y][z][2]);
 
         magnitude = glm::distance(grad, glm::vec3(0.0f));
+
         if(magnitude < 1.0f) magnitude = 1.0f;
+        else if(magnitude > gMaxLimit) magnitude = gMaxLimit;
         magnitude = 20*log2f(magnitude);
 
-        heatMap[((int)data[x][y][z] + offset)][(int)magnitude] ++;
+        heatMap[(int)magnitude][(int)data[x][y][z] + offset] ++;
     }
 
-    static float* temp = new float[heatMap.size() * heatMap[0].size()];
+    static float* temp = NULL;
+    
+    if(temp) delete[] temp;
+    temp = new float[heatMap.size() * heatMap[0].size()];
             
     for(int i = 0; i < (int)(heatMap.size() * heatMap[0].size()); i++)
     {

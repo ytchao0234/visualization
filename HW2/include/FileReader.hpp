@@ -41,10 +41,10 @@ private:
     float* heatMap_array;
     float gMin;
     float gMax;
-    float gMaxLimit;
     float hMaxNum;
 
 public:
+    float gMaxLimit;
 
     FileReader(string);
 
@@ -79,6 +79,8 @@ public:
     int getHeatMapCols() const { return heatMap[0].size(); }
     float getGMin() const { return gMin; }
     float getGMax() const { return gMax; }
+    float getDecibelMin() const { return (gMin < 1.0f) ? 0.0f: 20 * log(gMin); }
+    float getDecibelMax() const { return 20 * log(gMaxLimit); }
     float getHMaxNum() const { return hMaxNum; }
 };
 
@@ -123,5 +125,6 @@ void FileReader::readRawData(string filename)
         data[x][y][z] = (float) rawData;
     }
 
+    calcuGradient();
     calcuGraph();
 }

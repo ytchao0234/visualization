@@ -63,6 +63,8 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
     ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_Once);
     ImGui::SetNextWindowSize(ImVec2(300, 400), ImGuiCond_Once);
 
+    static bool toChangeHeatMapRange = true;
+
     ImGui::Begin("Main Menu");
     {
         ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
@@ -70,19 +72,23 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
 
         ImGui::Text("File: ");
 
-        static const char* selectedInf = "engine";
-        static const char* selectedRaw = selectedInf;
+        static string selectedInf = "engine";
+        static string selectedRaw = selectedInf;
         static int isovalue = 80;
 
-        if (ImGui::BeginCombo(".inf", selectedInf))
+        if (ImGui::BeginCombo(".inf", selectedInf.c_str()))
         {
             for (int i = 0; i < infFileList.size(); i++)
             {
                 if(ImGui::Selectable(infFileList[i].c_str()))
                 {
-                    selectedInf = infFileList[i].c_str();
+                    selectedInf = infFileList[i];
                     selectedRaw = selectedInf;
+                    fr->setGMaxLimit(0);
                     fr->readFile(selectedInf, selectedRaw);
+                    fr->calcuGradient();
+                    fr->calcuGraph();
+                    toChangeHeatMapRange = true;
                 }
                 if(selectedInf == infFileList[i])
                 {
@@ -92,16 +98,20 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
             ImGui::EndCombo();
         }
 
-        if (ImGui::BeginCombo(".raw", selectedRaw))
+        if (ImGui::BeginCombo(".raw", selectedRaw.c_str()))
         {
             for (int i = 0; i < (int)rawFileList.size(); i++)
             {
-                if(strstr(rawFileList[i].c_str(), selectedInf))
+                if(strstr(rawFileList[i].c_str(), selectedInf.c_str()))
                 {
                     if(ImGui::Selectable(rawFileList[i].c_str()))
                     {
-                        selectedRaw = rawFileList[i].c_str();
+                        selectedRaw = rawFileList[i];
+                        fr->setGMaxLimit(0);
                         fr->readFile(selectedInf, selectedRaw);
+                        fr->calcuGradient();
+                        fr->calcuGraph();
+                        toChangeHeatMapRange = true;
                     }
                     if(selectedRaw == rawFileList[i])
                     {
@@ -154,8 +164,8 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
         ImGui::Checkbox("make cross-section", &makeCrossSection);
     } ImGui::End();
 
-    ImGui::SetNextWindowPos(ImVec2(10, height - 450 - 10), ImGuiCond_Once);
-    ImGui::SetNextWindowSize(ImVec2(450, 450), ImGuiCond_Once);
+    ImGui::SetNextWindowPos(ImVec2(10, height - 460 - 10), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(460, 460), ImGuiCond_Once);
 
     ImGui::Begin("Graph");
     {
@@ -184,7 +194,7 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
                 {
                     ImPlot::SetNextPlotLimits(fr->getIMin(), fr->getIMax(), 0.0f, fr->getLogIMaxNum(), ImGuiCond_Always);
 
-                    if (ImPlot::BeginPlot("Frequency of Intensity", "Intensity", "Number")) {
+                    if (ImPlot::BeginPlot("Frequency of Intensity", "Intensity", "Frequency")) {
                         
                         ImPlot::PlotBars("frequency", fr->getLogIHistogram().data(), fr->getLogIHistogram().size(), 0.67f, 0.0f, -(int)(fr->getIMin()));
 
@@ -207,39 +217,41 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
 
         if(ImGui::CollapsingHeader("Heat Map"))
         {
-            static float gMaxLimit = fr->getGMax();
-            ImGui::InputFloat("gMax", &gMaxLimit);
+            static float x_min = fr->getIMin(), x_max = fr->getIMax(), y_min = fr->getDecibelMin(), y_max = fr->getDecibelMax();
+
+            ImGui::Text("gMax: ");
+            ImGui::Text(to_string(fr->getGMin()).c_str());
+            ImGui::SameLine();
+            ImGui::SliderFloat(to_string(fr->getGMax()).c_str(), &(fr->gMaxLimit), fr->getGMin(), fr->getGMax());
 
             if(ImGui::Button("Reload Heat Map"))
             {
-                fr->setGMaxLimit(gMaxLimit);
                 fr->calcuGraph();
+
+                toChangeHeatMapRange = true;
             }
 
-            ImGui::SameLine();
-
-            if(ImGui::Button("Reset"))
+            if(toChangeHeatMapRange)
             {
-                fr->setGMaxLimit(0);
-                fr->calcuGraph();
-                gMaxLimit = fr->getGMax();
+                x_min = fr->getIMin(), x_max = fr->getIMax(), y_min = fr->getDecibelMin(), y_max = fr->getDecibelMax();
+                toChangeHeatMapRange = false;
             }
 
             static ImVec4 gray[2] = {ImVec4(0,0,0,1), ImVec4(1,1,1,1)};
             ImPlot::SetColormap(gray, 2);
 
+            ImPlot::SetNextPlotLimits(x_min, x_max, y_min, y_max, ImGuiCond_Always);
+
             static ImPlotAxisFlags axes_flags = ImPlotAxisFlags_LockMin | ImPlotAxisFlags_LockMax | ImPlotAxisFlags_TickLabels;
 
-            ImPlot::SetNextPlotLimits(fr->getGMin(), fr->getGMax(), fr->getIMin(), fr->getIMax(), ImGuiCond_Always);
-
-            if (ImPlot::BeginPlot("","Decibel","Intensity",ImVec2(320,320),0,axes_flags,axes_flags))
+            if (ImPlot::BeginPlot("","Intensity","Magnitude of Gradient",ImVec2(370,310),0,axes_flags,axes_flags))
             {
                 ImPlot::PlotHeatmap("frequency",fr->getHeatMap(),fr->getHeatMapRows(),fr->getHeatMapCols(),0, fr->getHMaxNum(),
-                                    NULL, ImPlotPoint(fr->getGMin(),fr->getIMin()), ImPlotPoint(fr->getGMax(),fr->getIMax()));
+                                    NULL, ImPlotPoint(x_min,y_min), ImPlotPoint(x_max,y_max));
                 ImPlot::EndPlot();
             }
             ImGui::SameLine();
-            ImPlot::ShowColormapScale(0, fr->getHMaxNum(), 320);
+            ImPlot::ShowColormapScale(0, fr->getHMaxNum(), 310);
             ImPlot::SetColormap(ImPlotColormap_Default);
         }
     }ImGui::End();
@@ -288,6 +300,8 @@ void WindowManager::initObjects()
     fr = new FileReader("./Data/VolumeData/");
     fr->initNameList();
     fr->readFile("engine", "engine");
+    fr->calcuGradient();
+    fr->calcuGraph();
 }
 
 void WindowManager::resizeCallback(GLFWwindow* window, int width, int height)
