@@ -33,6 +33,7 @@ private:
     CubeModel *cubeModel;
     FileReader *fr;
     vector<Isosurface *> iso;
+    vector<string> methods;
 
 public:
     WindowManager(string, int, int, string);

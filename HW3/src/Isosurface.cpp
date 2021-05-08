@@ -1,15 +1,30 @@
 #include <Isosurface.hpp>
 
-Isosurface::Isosurface(vector<vector<vector<float>>> data, vector<vector<vector<vector<float>>>> gradient, vector<float> voxelSize, float value)
+Isosurface::Isosurface(vector<vector<vector<float>>> data, int min, int max, vector<vector<vector<vector<float>>>> gradient, vector<float> voxelSize, string method, float value)
 {
     this->data = data;
+    this->dataMin = min;
+    this->dataMax = max;
     this->gradient = gradient;
     this->voxelSize = voxelSize;
+    this->method = method;
+    this->methodNum = 3;
     this->isovalue = value;
     this->vertices.clear();
-    this->shader = new Shader("src/Shaders/vertex.vert", "src/Shaders/fragment.frag");
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
+    this->texture3D.clear();
+    this->texture1D.clear();
+    textures = new Texture(2);
+    VAO = new unsigned int[methodNum];
+    VBO = new unsigned int[methodNum];
+    glGenVertexArrays(methodNum, VAO);
+    glGenBuffers(methodNum, VBO);
+
+    if(method == "Marching Cube")
+        this->shader = new Shader("src/Shaders/vertexM.vert", "src/Shaders/fragmentM.frag");
+    else if(method == "Ray Casting")
+        this->shader = new Shader("src/Shaders/vertexR.vert", "src/Shaders/fragmentR.frag");
+    else if(method == "Slicing")
+        this->shader = new Shader("src/Shaders/vertexS.vert", "src/Shaders/fragmentS.frag");
 
     this->offsetFromBaseVertex = 
     {
@@ -285,17 +300,71 @@ Isosurface::Isosurface(vector<vector<vector<float>>> data, vector<vector<vector<
     };
 }
 
+Isosurface::~Isosurface()
+{
+    delete[] VAO;
+    delete[] VBO;
+}
+
+void Isosurface::setMethod(string method)
+{
+    this->method = method;
+}
+
+void Isosurface::makeVertices()
+{
+    if(method == "Marching Cube")
+    {
+        marchingCube();
+    }
+    else if(method == "Ray Casting")
+    {
+        rayCasting();
+    }
+    else if(method == "Slicing")
+    {
+        cout << "Method is Not Supported: " << method << endl;
+    }
+    else
+    {
+        cout << "Method is Not Supported: " << method << endl;
+    }
+}
+
 void Isosurface::bindVertices()
 {
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    if(method == "Marching Cube")
+    {
+        glBindVertexArray(VAO[0]);
+        glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
 
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)( 3 * sizeof(float) ));
-    glEnableVertexAttribArray(1);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)( 3 * sizeof(float) ));
+        glEnableVertexAttribArray(1);
+    }
+    else if(method == "Ray Casting")
+    {
+        glBindVertexArray(VAO[1]);
+        glBindBuffer(GL_ARRAY_BUFFER, VBO[1]);
+
+        glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
+
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)( 3 * sizeof(float) ));
+        glEnableVertexAttribArray(1);
+    }
+    else if(method == "Slicing")
+    {
+        cout << "Method is Not Supported: " << method << endl;
+    }
+    else
+    {
+        cout << "Method is Not Supported: " << method << endl;
+    }
 }
 
 void Isosurface::marchingCube()
@@ -340,24 +409,132 @@ void Isosurface::marchSingleCube(float x, float y, float z)
     }
 }
 
+void Isosurface::make3DTexture()
+{
+    texture3D.assign(data.size() * data[0].size() * data[0][0].size() * 4, 0);
+
+    for(int x = 0; x < (int)data.size(); x++)
+    for(int y = 0; y < (int)data[0].size(); y++)
+    for(int z = 0; z < (int)data[0][0].size(); z++)
+    {
+        texture3D[x*data.size() + y*data[0].size() + z*data[0][0].size() + 0] = ((gradient[x][y][z][0] + 1) / 2) * 255;
+        texture3D[x*data.size() + y*data[0].size() + z*data[0][0].size() + 1] = ((gradient[x][y][z][1] + 1) / 2) * 255;
+        texture3D[x*data.size() + y*data[0].size() + z*data[0][0].size() + 2] = ((gradient[x][y][z][2] + 1) / 2) * 255;
+        texture3D[x*data.size() + y*data[0].size() + z*data[0][0].size() + 3] = (data[x][y][z] - dataMin) / (dataMax - dataMin) * 255;
+    }
+
+    textures->make3DTexture(texture3D, data.size(), data[0].size(), data[0][0].size());
+}
+
+void Isosurface::make1DTexture()
+{
+    texture1D.assign(256 * 4, 0);
+
+    for(int i = 0; i < (int)texture1D.size(); i += 4)
+    {
+        texture1D[i + 0] = 255;
+        texture1D[i + 1] = 0;
+        texture1D[i + 2] = 0;
+        texture1D[i + 3] = 25;
+    }
+
+    textures->make1DTexture(texture1D, texture1D.size());
+}
+
+void Isosurface::rayCasting()
+{
+    make3DTexture();
+    make1DTexture();
+
+    float x = data.size();
+    float y = data[0].size();
+    float z = data[0][0].size();
+
+    vertices = 
+    {
+        // position         // texCoord
+        0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f,
+           x, 0.0f, 0.0f,   1.0f, 0.0f, 0.0f,
+           x,    y, 0.0f,   1.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f,
+           x,    y, 0.0f,   1.0f, 1.0f, 0.0f,
+        0.0f,    y, 0.0f,   0.0f, 1.0f, 0.0f,
+        
+        0.0f, 0.0f,    z,   0.0f, 0.0f, 1.0f,
+           x, 0.0f,    z,   1.0f, 0.0f, 1.0f,
+           x,    y,    z,   1.0f, 1.0f, 1.0f,
+        0.0f, 0.0f,    z,   0.0f, 0.0f, 1.0f,
+           x,    y,    z,   1.0f, 1.0f, 1.0f,
+        0.0f,    y,    z,   0.0f, 1.0f, 1.0f,
+        
+        0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f,
+        0.0f, 0.0f,    z,   0.0f, 0.0f, 1.0f,
+        0.0f,    y,    z,   0.0f, 1.0f, 1.0f,
+        0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f,
+        0.0f,    y, 0.0f,   0.0f, 1.0f, 0.0f,
+        0.0f,    y,    z,   0.0f, 1.0f, 1.0f,
+        
+        0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f,
+        0.0f, 0.0f,    z,   0.0f, 0.0f, 1.0f,
+           x, 0.0f,    z,   1.0f, 0.0f, 1.0f,
+        0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f,
+           x, 0.0f,    z,   1.0f, 0.0f, 1.0f,
+           x, 0.0f, 0.0f,   1.0f, 0.0f, 0.0f,
+        
+           x, 0.0f, 0.0f,   1.0f, 0.0f, 0.0f,
+           x, 0.0f,    z,   1.0f, 0.0f, 1.0f,
+           x,    y,    z,   1.0f, 1.0f, 1.0f,
+           x, 0.0f, 0.0f,   1.0f, 0.0f, 0.0f,
+           x,    y,    z,   1.0f, 1.0f, 1.0f,
+           x,    y, 0.0f,   1.0f, 1.0f, 0.0f,
+        
+        0.0f,    y, 0.0f,   0.0f, 1.0f, 0.0f,
+        0.0f,    y,    z,   0.0f, 1.0f, 1.0f,
+           x,    y,    z,   1.0f, 1.0f, 1.0f,
+        0.0f,    y, 0.0f,   0.0f, 1.0f, 0.0f,
+           x,    y,    z,   1.0f, 1.0f, 1.0f,
+           x,    y, 0.0f,   1.0f, 1.0f, 0.0f
+    };
+
+    bindVertices();
+}
+
 void Isosurface::draw(glm::mat4 projection, glm::mat4 view, vector<float> clipping, bool makeCrossSection)
 {
     shader->use();
 
     shader->setMatrix4("projection", glm::value_ptr(projection));
     shader->setMatrix4("view", glm::value_ptr(view));
-    
+
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::scale(model, glm::vec3(voxelSize[2], voxelSize[1], voxelSize[1]));
     shader->setMatrix4("model", glm::value_ptr(model));
 
+    if(method == "Marching Cube")
+        drawMarchingCube(clipping, makeCrossSection);
+    else if(method == "Ray Casting")
+        drawRayCasting();
+    else if(method == "Slicing")
+        cout << "Method is Not Supported: " << method << endl;
+}
+
+void Isosurface::drawMarchingCube(vector<float> clipping, bool makeCrossSection)
+{
     shader->setFloatVec("clipping", clipping, 4);
     shader->setBool("makeCrossSection", makeCrossSection);
 
-    glBindVertexArray(this->VAO);
+    glBindVertexArray(VAO[0]);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glDrawArrays(GL_TRIANGLES, 0, vertices.size() / 6);
 }
+
+void Isosurface::drawRayCasting()
+{
+    glBindVertexArray(VAO[1]);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glDrawArrays(GL_TRIANGLES, 0, vertices.size() / 6);
+}
+
 
 void Isosurface::setVoxelSize(vector<float> voxelSize)
 {

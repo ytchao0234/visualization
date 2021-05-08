@@ -45,7 +45,7 @@ else ifeq ($(findstring Microsoft, $(shell uname -a)), Microsoft)
 
 	rm = rm -rf *.exe *.out imgui.ini $(OBJ_DIR) transfer_function.txt
 else
-	LIBS += -L./lib/linux -lGLU -lglfw3 -pthread -lXrandr -lXxf86vm -lXi -lXinerama -lX11 -ldl -lXcursor
+	LIBS += $(shell pkg-config --static --libs glfw3)
 
 	mkdir = mkdir -p $(OBJ_DIR)
 

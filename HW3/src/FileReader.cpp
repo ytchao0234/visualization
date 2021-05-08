@@ -181,37 +181,39 @@ void FileReader::calcuGradient()
                         vector<float>(3, 0))));
 
     vector<float> voxelSize = info->getVoxelSize();
+    glm::vec3 gradiant = glm::vec3(0.0f, 0.0f, 0.0f);
 
-    for( int x = 0; x < (int)data.size() - 1; x++ )
-    for( int y = 0; y < (int)data[0].size() - 1; y++ )
-    for( int z = 0; z < (int)data[0][0].size() - 1; z++ )
+    for( int x = 0; x < (int)data.size(); x++ )
+    for( int y = 0; y < (int)data[0].size(); y++ )
+    for( int z = 0; z < (int)data[0][0].size(); z++ )
     {
-        if( x-1 > 0 && x+1 < data.size() )
-            dataGradient[x][y][z][0] = (data[x+1][y][z] - data[x-1][y][z]) / voxelSize[2] / 2.0f;
-        else if( x+1 < data.size())
-            dataGradient[x][y][z][0] = (data[x+1][y][z] - data[x][y][z]) / voxelSize[2];
+        if( x-1 > 0 && x+1 < (int)data.size() )
+            gradiant.x = (data[x+1][y][z] - data[x-1][y][z]) / voxelSize[2] / 2.0f;
+        else if( x+1 < (int)data.size())
+            gradiant.x = (data[x+1][y][z] - data[x][y][z]) / voxelSize[2];
         else if( x-1 > 0 )
-            dataGradient[x][y][z][0] = (data[x][y][z] - data[x-1][y][z]) / voxelSize[2];
-        else
-            cout << "dataGradient not found: x = " << x << endl;
+            gradiant.x = (data[x][y][z] - data[x-1][y][z]) / voxelSize[2];
 
-        if( y-1 > 0 && y+1 < data[0].size() )
-            dataGradient[x][y][z][1] = (data[x][y+1][z] - data[x][y-1][z]) / voxelSize[1] / 2.0f;
-        else if( y+1 < data[0].size())
-            dataGradient[x][y][z][1] = (data[x][y+1][z] - data[x][y][z]) / voxelSize[1];
+        if( y-1 > 0 && y+1 < (int)data[0].size() )
+            gradiant.y = (data[x][y+1][z] - data[x][y-1][z]) / voxelSize[1] / 2.0f;
+        else if( y+1 < (int)data[0].size())
+            gradiant.y = (data[x][y+1][z] - data[x][y][z]) / voxelSize[1];
         else if( y-1 > 0 )
-            dataGradient[x][y][z][1] = (data[x][y][z] - data[x][y-1][z]) / voxelSize[1];
-        else
-            cout << "dataGradient not found: y = " << y << endl;
+            gradiant.y = (data[x][y][z] - data[x][y-1][z]) / voxelSize[1];
 
-        if( z-1 > 0 && z+1 < data[0][0].size() )
-            dataGradient[x][y][z][2] = (data[x][y][z+1] - data[x][y][z-1]) / voxelSize[0] / 2.0f;
-        else if( z+1 < data[0][0].size())
-            dataGradient[x][y][z][2] = (data[x][y][z+1] - data[x][y][z]) / voxelSize[0];
+        if( z-1 > 0 && z+1 < (int)data[0][0].size() )
+            gradiant.z = (data[x][y][z+1] - data[x][y][z-1]) / voxelSize[0] / 2.0f;
+        else if( z+1 < (int)data[0][0].size())
+            gradiant.z = (data[x][y][z+1] - data[x][y][z]) / voxelSize[0];
         else if( z-1 > 0 )
-            dataGradient[x][y][z][2] = (data[x][y][z] - data[x][y][z-1]) / voxelSize[0];
-        else
-            cout << "dataGradient not found: z = " << z << endl;
+            gradiant.z = (data[x][y][z] - data[x][y][z-1]) / voxelSize[0];
+
+        if( gradiant.x != 0 || gradiant.y != 0 || gradiant.z != 0)
+            gradiant = glm::normalize(gradiant);
+
+        dataGradient[x][y][z][0] = gradiant.x;
+        dataGradient[x][y][z][1] = gradiant.y;
+        dataGradient[x][y][z][2] = gradiant.z;
     }
 }
 

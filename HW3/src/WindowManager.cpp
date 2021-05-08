@@ -9,6 +9,7 @@ WindowManager::WindowManager(string title, int width, int height, string glslVer
     this->clipping = { 1.0f, 1.0f, 1.0f, 500.0f };
     this->makeCrossSection = false;
     this->glslVersion = glslVersion;
+    this->methods = {"Marching Cube", "Ray Casting", "Slicing"};
 
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -61,13 +62,37 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
     // ImPlot::ShowDemoWindow();
 
     ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_Once);
-    ImGui::SetNextWindowSize(ImVec2(300, 400), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(300, 420), ImGuiCond_Once);
 
     static bool toChangeHeatMapRange = true;
 
     ImGui::Begin("Main Menu");
     {
         ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        ImGui::NewLine();
+
+        ImGui::Text("Method: ");
+        static string selectedMethod = methods[0];
+
+        if (ImGui::BeginCombo("method", selectedMethod.c_str()))
+        {
+            for (int i = 0; i < methods.size(); i++)
+            {
+                if(ImGui::Selectable(methods[i].c_str()))
+                {
+                    cout << methods[i] << endl;
+                    selectedMethod = methods[i];
+                    
+                    for(auto &i : iso)
+                        i->setMethod(selectedMethod);
+                }
+                if(selectedMethod == methods[i])
+                {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
         ImGui::NewLine();
 
         ImGui::Text("File: ");
@@ -130,16 +155,16 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
         if(ImGui::Button("Load Single"))
         {
             iso.clear();
-            iso.push_back(new Isosurface(fr->getData(), fr->getDataGradient(), fr->getInfo()->getVoxelSize(), isovalue));
-            iso.back()->marchingCube();
+            iso.push_back(new Isosurface(fr->getData(), fr->getIMin(), fr->getIMax(), fr->getDataGradient(), fr->getInfo()->getVoxelSize(), selectedMethod, isovalue));
+            iso.back()->makeVertices();
         }
 
         ImGui::SameLine();
 
         if(ImGui::Button("Load Multiple"))
         {
-            iso.push_back(new Isosurface(fr->getData(), fr->getDataGradient(), fr->getInfo()->getVoxelSize(), isovalue));
-            iso.back()->marchingCube();
+            iso.push_back(new Isosurface(fr->getData(), fr->getIMin(), fr->getIMax(), fr->getDataGradient(), fr->getInfo()->getVoxelSize(), selectedMethod, isovalue));
+            iso.back()->makeVertices();
         }
 
         if(ImGui::Button("Clear"))
