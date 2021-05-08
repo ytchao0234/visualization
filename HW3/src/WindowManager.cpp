@@ -349,7 +349,7 @@ void WindowManager::keyCallback(GLFWwindow * window, int key, int scancode, int 
 
             case GLFW_KEY_S:
                 for(auto i: iso)
-                    i->setShader("src/Shaders/vertex.vert", "src/Shaders/fragment.frag");
+                    i->setShader();
                 break;
 
             default:

@@ -50,7 +50,7 @@ public:
     void setVoxelSize(vector<float>);
     void setIsovalue(float);
     void setVertices(vector<float>, vector<int>);
-    void setShader(string, string);
+    void setShader();
     void setClippingNormal(int, bool);
     void setClippingValue(bool);
 

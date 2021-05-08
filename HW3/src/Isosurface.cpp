@@ -309,6 +309,7 @@ Isosurface::~Isosurface()
 void Isosurface::setMethod(string method)
 {
     this->method = method;
+    setShader();
 }
 
 void Isosurface::makeVertices()
@@ -417,11 +418,14 @@ void Isosurface::make3DTexture()
     for(int y = 0; y < (int)data[0].size(); y++)
     for(int z = 0; z < (int)data[0][0].size(); z++)
     {
-        texture3D[x*data.size() + y*data[0].size() + z*data[0][0].size() + 0] = ((gradient[x][y][z][0] + 1) / 2) * 255;
-        texture3D[x*data.size() + y*data[0].size() + z*data[0][0].size() + 1] = ((gradient[x][y][z][1] + 1) / 2) * 255;
-        texture3D[x*data.size() + y*data[0].size() + z*data[0][0].size() + 2] = ((gradient[x][y][z][2] + 1) / 2) * 255;
-        texture3D[x*data.size() + y*data[0].size() + z*data[0][0].size() + 3] = (data[x][y][z] - dataMin) / (dataMax - dataMin) * 255;
+        texture3D[x*data[0].size()*data[0][0].size()*4 + y*data[0][0].size()*4 + z*4 + 0] = (gradient[x][y][z][0] + 1) / 2 * 255;
+        texture3D[x*data[0].size()*data[0][0].size()*4 + y*data[0][0].size()*4 + z*4 + 1] = (gradient[x][y][z][1] + 1) / 2 * 255;
+        texture3D[x*data[0].size()*data[0][0].size()*4 + y*data[0][0].size()*4 + z*4 + 2] = (gradient[x][y][z][2] + 1) / 2 * 255;
+        texture3D[x*data[0].size()*data[0][0].size()*4 + y*data[0][0].size()*4 + z*4 + 3] = (data[x][y][z] - dataMin) / (dataMax - dataMin) * 255;
     }
+
+    // for(int i = 0; i < texture3D.size(); i+=4)
+    //     cout << texture3D[i] << ", " << texture3D[i+1] << ", " << texture3D[i+2] << ", " << texture3D[i+3] << endl;
 
     textures->make3DTexture(texture3D, data.size(), data[0].size(), data[0][0].size());
 }
@@ -452,48 +456,48 @@ void Isosurface::rayCasting()
 
     vertices = 
     {
-        // position         // texCoord
-        0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f,
-           x, 0.0f, 0.0f,   1.0f, 0.0f, 0.0f,
-           x,    y, 0.0f,   1.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f,
-           x,    y, 0.0f,   1.0f, 1.0f, 0.0f,
-        0.0f,    y, 0.0f,   0.0f, 1.0f, 0.0f,
+        // position                                     // texCoord
+        0.0f - x / 2,   0.0f - y / 2,   0.0f - z / 2,   0.0f, 0.0f, 0.0f,
+           x - x / 2,   0.0f - y / 2,   0.0f - z / 2,   1.0f, 0.0f, 0.0f,
+           x - x / 2,      y - y / 2,   0.0f - z / 2,   1.0f, 1.0f, 0.0f,
+        0.0f - x / 2,   0.0f - y / 2,   0.0f - z / 2,   0.0f, 0.0f, 0.0f,
+           x - x / 2,      y - y / 2,   0.0f - z / 2,   1.0f, 1.0f, 0.0f,
+        0.0f - x / 2,      y - y / 2,   0.0f - z / 2,   0.0f, 1.0f, 0.0f,
         
-        0.0f, 0.0f,    z,   0.0f, 0.0f, 1.0f,
-           x, 0.0f,    z,   1.0f, 0.0f, 1.0f,
-           x,    y,    z,   1.0f, 1.0f, 1.0f,
-        0.0f, 0.0f,    z,   0.0f, 0.0f, 1.0f,
-           x,    y,    z,   1.0f, 1.0f, 1.0f,
-        0.0f,    y,    z,   0.0f, 1.0f, 1.0f,
+        0.0f - x / 2,   0.0f - y / 2,      z - z / 2,   0.0f, 0.0f, 1.0f,
+           x - x / 2,   0.0f - y / 2,      z - z / 2,   1.0f, 0.0f, 1.0f,
+           x - x / 2,      y - y / 2,      z - z / 2,   1.0f, 1.0f, 1.0f,
+        0.0f - x / 2,   0.0f - y / 2,      z - z / 2,   0.0f, 0.0f, 1.0f,
+           x - x / 2,      y - y / 2,      z - z / 2,   1.0f, 1.0f, 1.0f,
+        0.0f - x / 2,      y - y / 2,      z - z / 2,   0.0f, 1.0f, 1.0f,
         
-        0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f,
-        0.0f, 0.0f,    z,   0.0f, 0.0f, 1.0f,
-        0.0f,    y,    z,   0.0f, 1.0f, 1.0f,
-        0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f,
-        0.0f,    y, 0.0f,   0.0f, 1.0f, 0.0f,
-        0.0f,    y,    z,   0.0f, 1.0f, 1.0f,
+        0.0f - x / 2,   0.0f - y / 2,   0.0f - z / 2,   0.0f, 0.0f, 0.0f,
+        0.0f - x / 2,   0.0f - y / 2,      z - z / 2,   0.0f, 0.0f, 1.0f,
+        0.0f - x / 2,      y - y / 2,      z - z / 2,   0.0f, 1.0f, 1.0f,
+        0.0f - x / 2,   0.0f - y / 2,   0.0f - z / 2,   0.0f, 0.0f, 0.0f,
+        0.0f - x / 2,      y - y / 2,   0.0f - z / 2,   0.0f, 1.0f, 0.0f,
+        0.0f - x / 2,      y - y / 2,      z - z / 2,   0.0f, 1.0f, 1.0f,
         
-        0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f,
-        0.0f, 0.0f,    z,   0.0f, 0.0f, 1.0f,
-           x, 0.0f,    z,   1.0f, 0.0f, 1.0f,
-        0.0f, 0.0f, 0.0f,   0.0f, 0.0f, 0.0f,
-           x, 0.0f,    z,   1.0f, 0.0f, 1.0f,
-           x, 0.0f, 0.0f,   1.0f, 0.0f, 0.0f,
+        0.0f - x / 2,   0.0f - y / 2,   0.0f - z / 2,   0.0f, 0.0f, 0.0f,
+        0.0f - x / 2,   0.0f - y / 2,      z - z / 2,   0.0f, 0.0f, 1.0f,
+           x - x / 2,   0.0f - y / 2,      z - z / 2,   1.0f, 0.0f, 1.0f,
+        0.0f - x / 2,   0.0f - y / 2,   0.0f - z / 2,   0.0f, 0.0f, 0.0f,
+           x - x / 2,   0.0f - y / 2,      z - z / 2,   1.0f, 0.0f, 1.0f,
+           x - x / 2,   0.0f - y / 2,   0.0f - z / 2,   1.0f, 0.0f, 0.0f,
         
-           x, 0.0f, 0.0f,   1.0f, 0.0f, 0.0f,
-           x, 0.0f,    z,   1.0f, 0.0f, 1.0f,
-           x,    y,    z,   1.0f, 1.0f, 1.0f,
-           x, 0.0f, 0.0f,   1.0f, 0.0f, 0.0f,
-           x,    y,    z,   1.0f, 1.0f, 1.0f,
-           x,    y, 0.0f,   1.0f, 1.0f, 0.0f,
+           x - x / 2,   0.0f - y / 2,   0.0f - z / 2,   1.0f, 0.0f, 0.0f,
+           x - x / 2,   0.0f - y / 2,      z - z / 2,   1.0f, 0.0f, 1.0f,
+           x - x / 2,      y - y / 2,      z - z / 2,   1.0f, 1.0f, 1.0f,
+           x - x / 2,   0.0f - y / 2,   0.0f - z / 2,   1.0f, 0.0f, 0.0f,
+           x - x / 2,      y - y / 2,      z - z / 2,   1.0f, 1.0f, 1.0f,
+           x - x / 2,      y - y / 2,   0.0f - z / 2,   1.0f, 1.0f, 0.0f,
         
-        0.0f,    y, 0.0f,   0.0f, 1.0f, 0.0f,
-        0.0f,    y,    z,   0.0f, 1.0f, 1.0f,
-           x,    y,    z,   1.0f, 1.0f, 1.0f,
-        0.0f,    y, 0.0f,   0.0f, 1.0f, 0.0f,
-           x,    y,    z,   1.0f, 1.0f, 1.0f,
-           x,    y, 0.0f,   1.0f, 1.0f, 0.0f
+        0.0f - x / 2,      y - y / 2,   0.0f - z / 2,   0.0f, 1.0f, 0.0f,
+        0.0f - x / 2,      y - y / 2,      z - z / 2,   0.0f, 1.0f, 1.0f,
+           x - x / 2,      y - y / 2,      z - z / 2,   1.0f, 1.0f, 1.0f,
+        0.0f - x / 2,      y - y / 2,   0.0f - z / 2,   0.0f, 1.0f, 0.0f,
+           x - x / 2,      y - y / 2,      z - z / 2,   1.0f, 1.0f, 1.0f,
+           x - x / 2,      y - y / 2,   0.0f - z / 2,   1.0f, 1.0f, 0.0f
     };
 
     bindVertices();
@@ -530,11 +534,15 @@ void Isosurface::drawMarchingCube(vector<float> clipping, bool makeCrossSection)
 
 void Isosurface::drawRayCasting()
 {
+    textures->active(0);
+    shader->setUInt("texture＿3D", 0);
+    textures->active(1);
+    shader->setUInt("texture＿1D", 1);
+
     glBindVertexArray(VAO[1]);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glDrawArrays(GL_TRIANGLES, 0, vertices.size() / 6);
 }
-
 
 void Isosurface::setVoxelSize(vector<float> voxelSize)
 {
@@ -597,10 +605,16 @@ void Isosurface::setVertices(vector<float> baseVertex, vector<int> edges)
     // cout << "}" << endl;
 }
 
-void Isosurface::setShader(string vert, string frag)
+void Isosurface::setShader()
 {
     delete shader;
-    shader = new Shader(vert.c_str(), frag.c_str());
+
+    if(method == "Marching Cube")
+        this->shader = new Shader("src/Shaders/vertexM.vert", "src/Shaders/fragmentM.frag");
+    else if(method == "Ray Casting")
+        this->shader = new Shader("src/Shaders/vertexR.vert", "src/Shaders/fragmentR.frag");
+    else if(method == "Slicing")
+        this->shader = new Shader("src/Shaders/vertexS.vert", "src/Shaders/fragmentS.frag");
 }
 
 vector<vector<float>> Isosurface::getGradient(vector<float> baseVertex)
