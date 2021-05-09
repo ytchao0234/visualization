@@ -11,8 +11,8 @@ Isosurface::Isosurface(vector<vector<vector<float>>> data, int min, int max, vec
     this->methodNum = 3;
     this->isovalue = value;
     this->vertices.clear();
-    this->texture3D.clear();
-    this->texture1D.clear();
+    this->texture3D = new unsigned char[data.size() * data[0].size() * data[0][0].size()][4];
+    this->texture1D = new unsigned char[256][4];
     textures = new Texture(2);
     VAO = new unsigned int[methodNum];
     VBO = new unsigned int[methodNum];
@@ -304,6 +304,8 @@ Isosurface::~Isosurface()
 {
     delete[] VAO;
     delete[] VBO;
+    delete[] texture3D;
+    delete[] texture1D;
 }
 
 void Isosurface::setMethod(string method)
@@ -412,37 +414,34 @@ void Isosurface::marchSingleCube(float x, float y, float z)
 
 void Isosurface::make3DTexture()
 {
-    texture3D.assign(data.size() * data[0].size() * data[0][0].size() * 4, 0);
+    // texture3D.assign(data.size() * data[0].size() * data[0][0].size(), {0, 0, 0, 0});
 
     for(int x = 0; x < (int)data.size(); x++)
     for(int y = 0; y < (int)data[0].size(); y++)
     for(int z = 0; z < (int)data[0][0].size(); z++)
     {
-        texture3D[x*data[0].size()*data[0][0].size()*4 + y*data[0][0].size()*4 + z*4 + 0] = (gradient[x][y][z][0] + 1) / 2 * 255;
-        texture3D[x*data[0].size()*data[0][0].size()*4 + y*data[0][0].size()*4 + z*4 + 1] = (gradient[x][y][z][1] + 1) / 2 * 255;
-        texture3D[x*data[0].size()*data[0][0].size()*4 + y*data[0][0].size()*4 + z*4 + 2] = (gradient[x][y][z][2] + 1) / 2 * 255;
-        texture3D[x*data[0].size()*data[0][0].size()*4 + y*data[0][0].size()*4 + z*4 + 3] = (data[x][y][z] - dataMin) / (dataMax - dataMin) * 255;
+        texture3D[x*data[0].size()*data[0][0].size() + y*data[0][0].size() + z][0] = (gradient[x][y][z][0] + 1) / 2 * 255;
+        texture3D[x*data[0].size()*data[0][0].size() + y*data[0][0].size() + z][1] = (gradient[x][y][z][1] + 1) / 2 * 255;
+        texture3D[x*data[0].size()*data[0][0].size() + y*data[0][0].size() + z][2] = (gradient[x][y][z][2] + 1) / 2 * 255;
+        texture3D[x*data[0].size()*data[0][0].size() + y*data[0][0].size() + z][3] = (data[x][y][z] - dataMin) / (dataMax - dataMin) * 255;
     }
-
-    // for(int i = 0; i < texture3D.size(); i+=4)
-    //     cout << texture3D[i] << ", " << texture3D[i+1] << ", " << texture3D[i+2] << ", " << texture3D[i+3] << endl;
 
     textures->make3DTexture(texture3D, data.size(), data[0].size(), data[0][0].size());
 }
 
 void Isosurface::make1DTexture()
 {
-    texture1D.assign(256 * 4, 0);
+    // texture1D.assign(256, {0, 0, 0, 0});
 
-    for(int i = 0; i < (int)texture1D.size(); i += 4)
+    for(int i = 0; i < 256; i++)
     {
-        texture1D[i + 0] = 255;
-        texture1D[i + 1] = 0;
-        texture1D[i + 2] = 0;
-        texture1D[i + 3] = 25;
+        texture1D[i][0] = 255;
+        texture1D[i][1] = 0;
+        texture1D[i][2] = 0;
+        texture1D[i][3] = 0.1 * 255;
     }
 
-    textures->make1DTexture(texture1D, texture1D.size());
+    textures->make1DTexture(texture1D, 256);
 }
 
 void Isosurface::rayCasting()
@@ -457,47 +456,47 @@ void Isosurface::rayCasting()
     vertices = 
     {
         // position                                     // texCoord
-        0.0f - x / 2,   0.0f - y / 2,   0.0f - z / 2,   0.0f, 0.0f, 0.0f,
-           x - x / 2,   0.0f - y / 2,   0.0f - z / 2,   1.0f, 0.0f, 0.0f,
-           x - x / 2,      y - y / 2,   0.0f - z / 2,   1.0f, 1.0f, 0.0f,
-        0.0f - x / 2,   0.0f - y / 2,   0.0f - z / 2,   0.0f, 0.0f, 0.0f,
-           x - x / 2,      y - y / 2,   0.0f - z / 2,   1.0f, 1.0f, 0.0f,
-        0.0f - x / 2,      y - y / 2,   0.0f - z / 2,   0.0f, 1.0f, 0.0f,
+        0.0f - x/2,     0.0f - y/2,     0.0f - z/2,     0.0f, 0.0f, 0.0f,
+           x - x/2,     0.0f - y/2,     0.0f - z/2,     1.0f, 0.0f, 0.0f,
+           x - x/2,        y - y/2,     0.0f - z/2,     1.0f, 1.0f, 0.0f,
+           x - x/2,        y - y/2,     0.0f - z/2,     1.0f, 1.0f, 0.0f,
+        0.0f - x/2,        y - y/2,     0.0f - z/2,     0.0f, 1.0f, 0.0f,
+        0.0f - x/2,     0.0f - y/2,     0.0f - z/2,     0.0f, 0.0f, 0.0f,
+
+        0.0f - x/2,     0.0f - y/2,        z - z/2,     0.0f, 0.0f, 1.0f,
+        0.0f - x/2,        y - y/2,        z - z/2,     0.0f, 1.0f, 1.0f,
+           x - x/2,        y - y/2,        z - z/2,     1.0f, 1.0f, 1.0f,
+           x - x/2,        y - y/2,        z - z/2,     1.0f, 1.0f, 1.0f,
+           x - x/2,     0.0f - y/2,        z - z/2,     1.0f, 0.0f, 1.0f,
+        0.0f - x/2,     0.0f - y/2,        z - z/2,     0.0f, 0.0f, 1.0f,
         
-        0.0f - x / 2,   0.0f - y / 2,      z - z / 2,   0.0f, 0.0f, 1.0f,
-           x - x / 2,   0.0f - y / 2,      z - z / 2,   1.0f, 0.0f, 1.0f,
-           x - x / 2,      y - y / 2,      z - z / 2,   1.0f, 1.0f, 1.0f,
-        0.0f - x / 2,   0.0f - y / 2,      z - z / 2,   0.0f, 0.0f, 1.0f,
-           x - x / 2,      y - y / 2,      z - z / 2,   1.0f, 1.0f, 1.0f,
-        0.0f - x / 2,      y - y / 2,      z - z / 2,   0.0f, 1.0f, 1.0f,
+        0.0f - x/2,     0.0f - y/2,     0.0f - z/2,     0.0f, 0.0f, 0.0f,
+        0.0f - x/2,        y - y/2,     0.0f - z/2,     0.0f, 1.0f, 0.0f,
+        0.0f - x/2,        y - y/2,        z - z/2,     0.0f, 1.0f, 1.0f,
+        0.0f - x/2,        y - y/2,        z - z/2,     0.0f, 1.0f, 1.0f,
+        0.0f - x/2,     0.0f - y/2,        z - z/2,     0.0f, 0.0f, 1.0f,
+        0.0f - x/2,     0.0f - y/2,     0.0f - z/2,     0.0f, 0.0f, 0.0f,
+
+        0.0f - x/2,     0.0f - y/2,     0.0f - z/2,     0.0f, 0.0f, 0.0f,
+        0.0f - x/2,     0.0f - y/2,        z - z/2,     0.0f, 0.0f, 1.0f,
+           x - x/2,     0.0f - y/2,        z - z/2,     1.0f, 0.0f, 1.0f,
+           x - x/2,     0.0f - y/2,        z - z/2,     1.0f, 0.0f, 1.0f,
+           x - x/2,     0.0f - y/2,     0.0f - z/2,     1.0f, 0.0f, 0.0f,
+        0.0f - x/2,     0.0f - y/2,     0.0f - z/2,     0.0f, 0.0f, 0.0f,
         
-        0.0f - x / 2,   0.0f - y / 2,   0.0f - z / 2,   0.0f, 0.0f, 0.0f,
-        0.0f - x / 2,   0.0f - y / 2,      z - z / 2,   0.0f, 0.0f, 1.0f,
-        0.0f - x / 2,      y - y / 2,      z - z / 2,   0.0f, 1.0f, 1.0f,
-        0.0f - x / 2,   0.0f - y / 2,   0.0f - z / 2,   0.0f, 0.0f, 0.0f,
-        0.0f - x / 2,      y - y / 2,   0.0f - z / 2,   0.0f, 1.0f, 0.0f,
-        0.0f - x / 2,      y - y / 2,      z - z / 2,   0.0f, 1.0f, 1.0f,
-        
-        0.0f - x / 2,   0.0f - y / 2,   0.0f - z / 2,   0.0f, 0.0f, 0.0f,
-        0.0f - x / 2,   0.0f - y / 2,      z - z / 2,   0.0f, 0.0f, 1.0f,
-           x - x / 2,   0.0f - y / 2,      z - z / 2,   1.0f, 0.0f, 1.0f,
-        0.0f - x / 2,   0.0f - y / 2,   0.0f - z / 2,   0.0f, 0.0f, 0.0f,
-           x - x / 2,   0.0f - y / 2,      z - z / 2,   1.0f, 0.0f, 1.0f,
-           x - x / 2,   0.0f - y / 2,   0.0f - z / 2,   1.0f, 0.0f, 0.0f,
-        
-           x - x / 2,   0.0f - y / 2,   0.0f - z / 2,   1.0f, 0.0f, 0.0f,
-           x - x / 2,   0.0f - y / 2,      z - z / 2,   1.0f, 0.0f, 1.0f,
-           x - x / 2,      y - y / 2,      z - z / 2,   1.0f, 1.0f, 1.0f,
-           x - x / 2,   0.0f - y / 2,   0.0f - z / 2,   1.0f, 0.0f, 0.0f,
-           x - x / 2,      y - y / 2,      z - z / 2,   1.0f, 1.0f, 1.0f,
-           x - x / 2,      y - y / 2,   0.0f - z / 2,   1.0f, 1.0f, 0.0f,
-        
-        0.0f - x / 2,      y - y / 2,   0.0f - z / 2,   0.0f, 1.0f, 0.0f,
-        0.0f - x / 2,      y - y / 2,      z - z / 2,   0.0f, 1.0f, 1.0f,
-           x - x / 2,      y - y / 2,      z - z / 2,   1.0f, 1.0f, 1.0f,
-        0.0f - x / 2,      y - y / 2,   0.0f - z / 2,   0.0f, 1.0f, 0.0f,
-           x - x / 2,      y - y / 2,      z - z / 2,   1.0f, 1.0f, 1.0f,
-           x - x / 2,      y - y / 2,   0.0f - z / 2,   1.0f, 1.0f, 0.0f
+           x - x/2,     0.0f - y/2,     0.0f - z/2,     1.0f, 0.0f, 0.0f,
+           x - x/2,     0.0f - y/2,        z - z/2,     1.0f, 0.0f, 1.0f,
+           x - x/2,        y - y/2,        z - z/2,     1.0f, 1.0f, 1.0f,
+           x - x/2,        y - y/2,        z - z/2,     1.0f, 1.0f, 1.0f,
+           x - x/2,        y - y/2,     0.0f - z/2,     1.0f, 1.0f, 0.0f,
+           x - x/2,     0.0f - y/2,     0.0f - z/2,     1.0f, 0.0f, 0.0f,
+
+           x - x/2,        y - y/2,     0.0f - z/2,     1.0f, 1.0f, 0.0f,
+           x - x/2,        y - y/2,        z - z/2,     1.0f, 1.0f, 1.0f,
+        0.0f - x/2,        y - y/2,        z - z/2,     0.0f, 1.0f, 1.0f,
+        0.0f - x/2,        y - y/2,        z - z/2,     0.0f, 1.0f, 1.0f,
+        0.0f - x/2,        y - y/2,     0.0f - z/2,     0.0f, 1.0f, 0.0f,
+           x - x/2,        y - y/2,     0.0f - z/2,     1.0f, 1.0f, 0.0f,
     };
 
     bindVertices();
@@ -524,6 +523,8 @@ void Isosurface::draw(glm::mat4 projection, glm::mat4 view, vector<float> clippi
 
 void Isosurface::drawMarchingCube(vector<float> clipping, bool makeCrossSection)
 {
+    glDisable(GL_CULL_FACE);
+
     shader->setFloatVec("clipping", clipping, 4);
     shader->setBool("makeCrossSection", makeCrossSection);
 
@@ -534,10 +535,15 @@ void Isosurface::drawMarchingCube(vector<float> clipping, bool makeCrossSection)
 
 void Isosurface::drawRayCasting()
 {
-    textures->active(0);
-    shader->setUInt("texture＿3D", 0);
-    textures->active(1);
-    shader->setUInt("texture＿1D", 1);
+    shader->setUInt("texture_3D", 0);
+    shader->setUInt("texture_1D", 1);
+
+    textures->active3D(0);
+    textures->active1D(1);
+
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glFrontFace(GL_CW);
 
     glBindVertexArray(VAO[1]);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);

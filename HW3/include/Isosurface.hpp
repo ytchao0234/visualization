@@ -22,8 +22,8 @@ private:
     vector<vector<vector<vector<float>>>> gradient;
     vector<float> voxelSize;
     float isovalue;
-    vector<unsigned int> texture3D;
-    vector<unsigned int> texture1D;
+    unsigned char (*texture3D)[4];
+    unsigned char (*texture1D)[4];
     Texture *textures;
 
     Shader *shader;
