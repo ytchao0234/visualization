@@ -9,7 +9,7 @@ WindowManager::WindowManager(string title, int width, int height, string glslVer
     this->clipping = { 1.0f, 1.0f, 1.0f, 500.0f };
     this->makeCrossSection = false;
     this->glslVersion = glslVersion;
-    this->methods = {"Marching Cube", "Ray Casting", "Slicing"};
+    this->methods = {"Isosurface", "Ray Casting", "Slicing"};
 
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -64,7 +64,8 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
     ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_Once);
     ImGui::SetNextWindowSize(ImVec2(300, 420), ImGuiCond_Once);
 
-    static bool toChangeHeatMapRange = true;
+    static bool toRenderGraph = false;
+    static float gMaxLimit = fr->getVolumeData()->getGradMax();
 
     ImGui::Begin("Main Menu");
     {
@@ -76,15 +77,11 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
 
         if (ImGui::BeginCombo("method", selectedMethod.c_str()))
         {
-            for (int i = 0; i < methods.size(); i++)
+            for (int i = 0; i < (int)methods.size(); i++)
             {
                 if(ImGui::Selectable(methods[i].c_str()))
                 {
-                    cout << methods[i] << endl;
                     selectedMethod = methods[i];
-                    
-                    for(auto &i : iso)
-                        i->setMethod(selectedMethod);
                 }
                 if(selectedMethod == methods[i])
                 {
@@ -100,20 +97,17 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
         static string selectedInf = "engine";
         static string selectedRaw = selectedInf;
         static int isovalue = 80;
+        static bool toLoad = false;
 
         if (ImGui::BeginCombo(".inf", selectedInf.c_str()))
         {
-            for (int i = 0; i < infFileList.size(); i++)
+            for (int i = 0; i < (int)infFileList.size(); i++)
             {
                 if(ImGui::Selectable(infFileList[i].c_str()))
                 {
                     selectedInf = infFileList[i];
                     selectedRaw = selectedInf;
-                    fr->setGMaxLimit(0);
-                    fr->readFile(selectedInf, selectedRaw);
-                    fr->calcuGradient();
-                    fr->calcuGraph();
-                    toChangeHeatMapRange = true;
+                    toLoad = false;
                 }
                 if(selectedInf == infFileList[i])
                 {
@@ -132,11 +126,7 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
                     if(ImGui::Selectable(rawFileList[i].c_str()))
                     {
                         selectedRaw = rawFileList[i];
-                        fr->setGMaxLimit(0);
-                        fr->readFile(selectedInf, selectedRaw);
-                        fr->calcuGradient();
-                        fr->calcuGraph();
-                        toChangeHeatMapRange = true;
+                        toLoad = false;
                     }
                     if(selectedRaw == rawFileList[i])
                     {
@@ -147,30 +137,57 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
             ImGui::EndCombo();
         }
 
-        ImGui::Text("Isovalue:");
-        ImGui::Text("%s", to_string((int)(fr->getIMin())).c_str());
-        ImGui::SameLine();
-        ImGui::SliderInt(to_string((int)(fr->getIMax())).c_str(), &isovalue, fr->getIMin(), fr->getIMax());
-
-        if(ImGui::Button("Load Single"))
+        if(ImGui::Button("Read File"))
         {
-            iso.clear();
-            iso.push_back(new Isosurface(fr->getData(), fr->getIMin(), fr->getIMax(), fr->getDataGradient(), fr->getInfo()->getVoxelSize(), selectedMethod, isovalue));
-            iso.back()->makeVertices();
+            fr->readFile(selectedInf, selectedRaw);
+            gMaxLimit = fr->getVolumeData()->getGradMax();
+
+            if(histogram != NULL) delete histogram;
+            histogram = new Histogram(fr->getVolumeData());
+
+            if(heatmap != NULL) delete heatmap;
+            heatmap = new Heatmap(fr->getVolumeData(), gMaxLimit);
+
+            toLoad = true;
         }
 
         ImGui::SameLine();
-
-        if(ImGui::Button("Load Multiple"))
-        {
-            iso.push_back(new Isosurface(fr->getData(), fr->getIMin(), fr->getIMax(), fr->getDataGradient(), fr->getInfo()->getVoxelSize(), selectedMethod, isovalue));
-            iso.back()->makeVertices();
-        }
 
         if(ImGui::Button("Clear"))
         {
-            iso.clear();
+            volumeList.clear();
         }
+
+        if(toLoad)
+        {
+            if(selectedMethod == "Isosurface")
+                ImGui::SliderInt(to_string((int)(fr->getVolumeData()->getDataMax())).c_str(), &isovalue,
+                                fr->getVolumeData()->getDataMin(), fr->getVolumeData()->getDataMax());
+
+            if(ImGui::Button("Load Single"))
+            {
+                volumeList.clear();
+
+                if(selectedMethod == "Isosurface")
+                    volumeList.push_back(new Isosurface(fr->getVolumeData(), isovalue));
+
+                volumeList.back()->makeVertices();
+                toLoad = false;
+            }
+
+            ImGui::SameLine();
+
+            if(ImGui::Button("Load Multiple"))
+            {
+                if(selectedMethod == "Isosurface")
+                    volumeList.push_back(new Isosurface(fr->getVolumeData(), isovalue));
+
+                volumeList.back()->makeVertices();
+                toLoad = false;
+            }
+        }
+
+        ImGui::Checkbox("Render Graph", &toRenderGraph);
 
         ImGui::NewLine();
         ImGui::Text("Clipping Plane: ");
@@ -192,94 +209,111 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
     ImGui::SetNextWindowPos(ImVec2(10, height - 460 - 10), ImGuiCond_Once);
     ImGui::SetNextWindowSize(ImVec2(460, 460), ImGuiCond_Once);
 
-    ImGui::Begin("Graph");
+    if(toRenderGraph)
     {
-        if(ImGui::CollapsingHeader("Histogram"))
+        ImGui::Begin("Graph");
         {
-            static bool toLog = true;
-            ImGui::Checkbox("Log", &toLog);
-
-            static bool changeHistogram = false;
-            ImGui::Checkbox("ImGui Histogram", &changeHistogram);
-
-            if(changeHistogram)
+            if(ImGui::CollapsingHeader("Histogram") && histogram != NULL)
             {
-                if(toLog)
-                    ImGui::PlotHistogram("", fr->getLogIHistogram().data(), fr->getLogIHistogram().size(),
-                                         0, "Frequency of Intensity", 0.0f,
-                                         (float)(fr->getLogIMaxNum()), ImVec2(430, 300));
-                else
-                    ImGui::PlotHistogram("", fr->getIHistogram().data(), fr->getIHistogram().size(),
-                                         0, "Frequency of Intensity", 0.0f,
-                                         (float)(fr->getIMaxNum()), ImVec2(430, 300));
-            }
-            else
-            {
-                if(toLog)
+                static bool toLog = true;
+                static bool toEqual = false;
+                if(ImGui::Checkbox("Log", &toLog)) toEqual = !toLog;
+                if(ImGui::Checkbox("Equalize", &toEqual)) toLog = !toEqual;
+
+                static bool changeHistogram = false;
+                ImGui::Checkbox("ImGui Histogram", &changeHistogram);
+
+                if(changeHistogram)
                 {
-                    ImPlot::SetNextPlotLimits(fr->getIMin(), fr->getIMax(), 0.0f, fr->getLogIMaxNum(), ImGuiCond_Always);
-
-                    if (ImPlot::BeginPlot("Frequency of Intensity", "Intensity", "Frequency")) {
-                        
-                        ImPlot::PlotBars("frequency", fr->getLogIHistogram().data(), fr->getLogIHistogram().size(), 0.67f, 0.0f, -(int)(fr->getIMin()));
-
-                        ImPlot::EndPlot();
-                    }
+                    if(toLog)
+                        ImGui::PlotHistogram("", histogram->getData("LOG").data(), histogram->getRangeMax("LOG") - histogram->getRangeMin("LOG") + 1,
+                                            0, "Frequency of Intensity", (float)histogram->getValueMin("LOG"),
+                                            (float)histogram->getValueMax("LOG"), ImVec2(430, 300));
+                    if(toEqual)
+                        ImGui::PlotHistogram("", histogram->getData("EQUAL").data(), histogram->getRangeMax("EQUAL") - histogram->getRangeMin("EQUAL") + 1,
+                                            0, "Frequency of Intensity", (float)histogram->getValueMin("EQUAL"),
+                                            (float)histogram->getValueMax("EQUAL"), ImVec2(430, 300));
+                    else
+                        ImGui::PlotHistogram("", histogram->getData("ORIGIN").data(), histogram->getRangeMax("ORIGIN") - histogram->getRangeMin("ORIGIN") + 1,
+                                            0, "Frequency of Intensity", (float)histogram->getValueMin("ORIGIN"),
+                                            (float)histogram->getValueMax("ORIGIN"), ImVec2(430, 300));
                 }
                 else
                 {
-                    ImPlot::SetNextPlotLimits(fr->getIMin(), fr->getIMax(), 0.0f, fr->getIMaxNum(), ImGuiCond_Always);
+                    if(toLog)
+                    {
+                        ImPlot::SetNextPlotLimits(histogram->getRangeMin("LOG"), histogram->getRangeMax("LOG"),
+                                                  histogram->getValueMin("LOG"), histogram->getValueMax("LOG"), ImGuiCond_Always);
 
-                    if (ImPlot::BeginPlot("Frequency of Intensity", "Intensity", "Number")) {
-                        
-                        ImPlot::PlotBars("frequency", fr->getIHistogram().data(), fr->getIHistogram().size(), 0.67f, 0.0f, -(int)(fr->getIMin()));
+                        if (ImPlot::BeginPlot("Frequency of Intensity", "Intensity", "Frequency")) {
+                            
+                            ImPlot::PlotBars("frequency", histogram->getData("LOG").data(), histogram->getRangeMax("LOG") - histogram->getRangeMin("LOG") + 1,
+                                             0.67f, 0.0f, histogram->getRangeOffset("LOG"));
+                            ImPlot::EndPlot();
+                        }
+                    }
+                    if(toEqual)
+                    {
+                        ImPlot::SetNextPlotLimits(histogram->getRangeMin("EQUAL"), histogram->getRangeMax("EQUAL"),
+                                                  histogram->getValueMin("EQUAL"), histogram->getValueMax("EQUAL"), ImGuiCond_Always);
 
-                        ImPlot::EndPlot();
+                        if (ImPlot::BeginPlot("Frequency of Intensity", "Intensity", "Frequency")) {
+                            
+                            ImPlot::PlotBars("frequency", histogram->getData("EQUAL").data(), histogram->getRangeMax("EQUAL") - histogram->getRangeMin("EQUAL") + 1,
+                                             0.67f, 0.0f, histogram->getRangeOffset("EQUAL"));
+                            ImPlot::EndPlot();
+                        }
+                    }
+                    else
+                    {
+                        ImPlot::SetNextPlotLimits(histogram->getRangeMin("ORIGIN"), histogram->getRangeMax("ORIGIN"),
+                                                  histogram->getValueMin("ORIGIN"), histogram->getValueMax("ORIGIN"), ImGuiCond_Always);
+
+                        if (ImPlot::BeginPlot("Frequency of Intensity", "Intensity", "Frequency")) {
+                            
+                            ImPlot::PlotBars("frequency", histogram->getData("ORIGIN").data(), histogram->getRangeMax("ORIGIN") - histogram->getRangeMin("ORIGIN") + 1,
+                                             0.67f, 0.0f, histogram->getRangeOffset("ORIGIN"));
+                            ImPlot::EndPlot();
+                        }
                     }
                 }
             }
-        }
 
-        if(ImGui::CollapsingHeader("Heat Map"))
-        {
-            static float x_min = fr->getIMin(), x_max = fr->getIMax(), y_min = fr->getDecibelMin(), y_max = fr->getDecibelMax();
-
-            ImGui::Text("gMax: ");
-            ImGui::Text(to_string(fr->getGMin()).c_str());
-            ImGui::SameLine();
-            ImGui::SliderFloat(to_string(fr->getGMax()).c_str(), &(fr->gMaxLimit), fr->getGMin(), fr->getGMax());
-
-            if(ImGui::Button("Reload Heat Map"))
+            if(ImGui::CollapsingHeader("Heat Map") && heatmap != NULL)
             {
-                fr->calcuGraph();
+                ImGui::Text("gMax: ");
+                ImGui::Text(to_string(fr->getVolumeData()->getGradMin()).c_str());
+                ImGui::SameLine();
+                ImGui::SliderFloat(to_string(fr->getVolumeData()->getGradMax()).c_str(), &gMaxLimit, fr->getVolumeData()->getGradMin(), fr->getVolumeData()->getGradMax());
 
-                toChangeHeatMapRange = true;
+                if(ImGui::Button("Reload Heat Map"))
+                {
+                    if(heatmap != NULL) delete heatmap;
+                    heatmap = new Heatmap(fr->getVolumeData(), gMaxLimit);
+                }
+
+                static ImVec4 gray[2] = {ImVec4(0,0,0,1), ImVec4(1,1,1,1)};
+                ImPlot::SetColormap(gray, 2);
+
+                ImPlot::SetNextPlotLimits(heatmap->getRangeMin("INTENSITY"), heatmap->getRangeMax("INTENSITY"),
+                                          heatmap->getRangeMin("GRADMAG"), heatmap->getRangeMax("GRADMAG"), ImGuiCond_Always);
+
+                static ImPlotAxisFlags axes_flags = ImPlotAxisFlags_LockMin | ImPlotAxisFlags_LockMax | ImPlotAxisFlags_TickLabels;
+
+                if (ImPlot::BeginPlot("","Intensity","Magnitude of Gradient",ImVec2(370,310),0,axes_flags,axes_flags))
+                {
+                    ImPlot::PlotHeatmap("frequency",heatmap->getData().data(), heatmap->getRangeMax("GRADMAG") - heatmap->getRangeMin("GRADMAG") + 1,
+                                        heatmap->getRangeMax("INTENSITY") - heatmap->getRangeMin("INTENSITY") + 1, 0, heatmap->getValueMax(), NULL,
+                                        ImPlotPoint(heatmap->getRangeMin("INTENSITY"), heatmap->getRangeMin("GRADMAG")),
+                                        ImPlotPoint(heatmap->getRangeMax("INTENSITY"), heatmap->getRangeMax("GRADMAG")));
+                    ImPlot::EndPlot();
+                }
+                ImGui::SameLine();
+                ImPlot::ShowColormapScale(0, heatmap->getValueMax(), 310);
+                ImPlot::SetColormap(ImPlotColormap_Default);
             }
-
-            if(toChangeHeatMapRange)
-            {
-                x_min = fr->getIMin(), x_max = fr->getIMax(), y_min = fr->getDecibelMin(), y_max = fr->getDecibelMax();
-                toChangeHeatMapRange = false;
-            }
-
-            static ImVec4 gray[2] = {ImVec4(0,0,0,1), ImVec4(1,1,1,1)};
-            ImPlot::SetColormap(gray, 2);
-
-            ImPlot::SetNextPlotLimits(x_min, x_max, y_min, y_max, ImGuiCond_Always);
-
-            static ImPlotAxisFlags axes_flags = ImPlotAxisFlags_LockMin | ImPlotAxisFlags_LockMax | ImPlotAxisFlags_TickLabels;
-
-            if (ImPlot::BeginPlot("","Intensity","Magnitude of Gradient",ImVec2(370,310),0,axes_flags,axes_flags))
-            {
-                ImPlot::PlotHeatmap("frequency",fr->getHeatMap(),fr->getHeatMapRows(),fr->getHeatMapCols(),0, fr->getHMaxNum(),
-                                    NULL, ImPlotPoint(x_min,y_min), ImPlotPoint(x_max,y_max));
-                ImPlot::EndPlot();
-            }
-            ImGui::SameLine();
-            ImPlot::ShowColormapScale(0, fr->getHMaxNum(), 310);
-            ImPlot::SetColormap(ImPlotColormap_Default);
-        }
-    }ImGui::End();
+        }ImGui::End();
+    }
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -324,9 +358,9 @@ void WindowManager::initObjects()
 
     fr = new FileReader("./Data/VolumeData/");
     fr->initNameList();
-    fr->readFile("engine", "engine");
-    fr->calcuGradient();
-    fr->calcuGraph();
+
+    histogram = NULL;
+    heatmap = NULL;
 }
 
 void WindowManager::resizeCallback(GLFWwindow* window, int width, int height)
@@ -348,8 +382,8 @@ void WindowManager::keyCallback(GLFWwindow * window, int key, int scancode, int 
                 break;
 
             case GLFW_KEY_S:
-                for(auto i: iso)
-                    i->setShader();
+                for(auto volume: volumeList)
+                    volume->setShader();
                 break;
 
             default:

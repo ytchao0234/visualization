@@ -7,6 +7,9 @@
 #include <Light.hpp>
 #include <CubeModel.hpp>
 #include <FileReader.hpp>
+#include <Histogram.hpp>
+#include <Heatmap.hpp>
+#include <Method.hpp>
 #include <Isosurface.hpp>
 
 #include <imgui/imgui.h>
@@ -32,7 +35,9 @@ private:
     Light *light;
     CubeModel *cubeModel;
     FileReader *fr;
-    vector<Isosurface *> iso;
+    Histogram* histogram;
+    Heatmap* heatmap;
+    vector<Method *> volumeList;
     vector<string> methods;
 
 public:
@@ -64,5 +69,5 @@ public:
     Light * getLight() { return light; }
     CubeModel* getCube() { return cubeModel; }
     FileReader* getFileReader() { return fr; }
-    vector<Isosurface *> getIsosurface() { return iso; }
+    vector<Method *> getVolumeList() { return volumeList; }
 };

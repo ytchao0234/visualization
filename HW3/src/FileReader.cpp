@@ -6,19 +6,14 @@ FileReader::FileReader(string rootPath)
     infNameList.clear();
     rawNameList.clear();
     info = new FileInfo();
-    data.clear();
-    dataGradient.clear();
+    data = new VolumeData();
     endian = isBigEndian() ? "big" : "little";
-    iHistogram.clear();
-    logIHistogram.clear();
-    iMin = 0;
-    iMax = 0;
-    offset = 0;
-    iMaxNum = 0;
-    logIMaxNum = 0;
-    gMin = 0;
-    gMax = 0;
-    gMaxLimit = 0;
+}
+
+FileReader::~FileReader()
+{
+    delete info;
+    delete data;
 }
 
 bool FileReader::isBigEndian()
@@ -108,7 +103,8 @@ void FileReader::readInf(string filename)
         
         if(regex_search(line, matches, reg_resolution))
         {
-            info->setResolution({stoi(matches[1]), stoi(matches[2]), stoi(matches[3])});
+            info->setResolution({stoi(matches[3]), stoi(matches[2]), stoi(matches[1])});
+            data->setResolution(stoi(matches[3]), stoi(matches[2]), stoi(matches[1]));
         }
 
         else if(regex_search(line, matches, reg_valueType))
@@ -136,7 +132,8 @@ void FileReader::readInf(string filename)
 
         else if(regex_search(line, matches, reg_voxelSize))
         {
-            info->setVoxelSize({stof(matches[2]), stof(matches[3]), stof(matches[4])});
+            info->setVoxelSize({stof(matches[4]), stof(matches[3]), stof(matches[2])});
+            data->setVoxelSize(stof(matches[4]), stof(matches[3]), stof(matches[2]));
         }
 
         else if(regex_search(line, matches, reg_endian))
@@ -173,155 +170,22 @@ void FileReader::readRawData(string filename)
         readRawData<float>(filename);
 }
 
-void FileReader::calcuGradient()
+vector<string> FileReader::getInfNameList() const
 {
-    dataGradient.assign(data.size(),
-                        vector<vector<vector<float>>>(data[0].size(),
-                        vector<vector<float>>(data[0][0].size(),
-                        vector<float>(3, 0))));
-
-    vector<float> voxelSize = info->getVoxelSize();
-    glm::vec3 gradiant = glm::vec3(0.0f, 0.0f, 0.0f);
-
-    for( int x = 0; x < (int)data.size(); x++ )
-    for( int y = 0; y < (int)data[0].size(); y++ )
-    for( int z = 0; z < (int)data[0][0].size(); z++ )
-    {
-        if( x-1 > 0 && x+1 < (int)data.size() )
-            gradiant.x = (data[x+1][y][z] - data[x-1][y][z]) / voxelSize[2] / 2.0f;
-        else if( x+1 < (int)data.size())
-            gradiant.x = (data[x+1][y][z] - data[x][y][z]) / voxelSize[2];
-        else if( x-1 > 0 )
-            gradiant.x = (data[x][y][z] - data[x-1][y][z]) / voxelSize[2];
-
-        if( y-1 > 0 && y+1 < (int)data[0].size() )
-            gradiant.y = (data[x][y+1][z] - data[x][y-1][z]) / voxelSize[1] / 2.0f;
-        else if( y+1 < (int)data[0].size())
-            gradiant.y = (data[x][y+1][z] - data[x][y][z]) / voxelSize[1];
-        else if( y-1 > 0 )
-            gradiant.y = (data[x][y][z] - data[x][y-1][z]) / voxelSize[1];
-
-        if( z-1 > 0 && z+1 < (int)data[0][0].size() )
-            gradiant.z = (data[x][y][z+1] - data[x][y][z-1]) / voxelSize[0] / 2.0f;
-        else if( z+1 < (int)data[0][0].size())
-            gradiant.z = (data[x][y][z+1] - data[x][y][z]) / voxelSize[0];
-        else if( z-1 > 0 )
-            gradiant.z = (data[x][y][z] - data[x][y][z-1]) / voxelSize[0];
-
-        if( gradiant.x != 0 || gradiant.y != 0 || gradiant.z != 0)
-            gradiant = glm::normalize(gradiant);
-
-        dataGradient[x][y][z][0] = gradiant.x;
-        dataGradient[x][y][z][1] = gradiant.y;
-        dataGradient[x][y][z][2] = gradiant.z;
-    }
+    return infNameList;
 }
 
-void FileReader::printRawData() const
+vector<string> FileReader::getRawNameList() const
 {
-    for(auto x: data)
-    {
-        for(auto y: x)
-        {
-            for(auto z: y)
-            {
-                cout << z << " ";
-            }
-        }
-    }
+    return rawNameList;
 }
 
-void FileReader::calcuGraph()
+FileInfo* FileReader::getInfo() const
 {
-    iMin = numeric_limits<float>::max();
-    iMax = numeric_limits<float>::min();
+    return info;
+}
 
-    glm::vec3 grad;
-    float magnitude;
-    gMin = numeric_limits<float>::max();
-    gMax = numeric_limits<float>::min();
-
-    for(int x = 0; x < (int)data.size(); x++)
-    for(int y = 0; y < (int)data[0].size(); y++)
-    for(int z = 0; z < (int)data[0][0].size(); z++)
-    {
-        iMin = min(iMin, data[x][y][z]);
-        iMax = max(iMax, data[x][y][z]);
-
-        grad = glm::vec3(dataGradient[x][y][z][0],
-                         dataGradient[x][y][z][1],
-                         dataGradient[x][y][z][2]);
-
-        magnitude = glm::distance(grad, glm::vec3(0.0f));
-
-        gMin = min(gMin, magnitude);
-        gMax = max(gMax, magnitude);
-    }
-
-    if(gMin < 1.0f) gMin = 1.0f;
-    
-    if(gMaxLimit - 0.0f < 0.001f) gMaxLimit = gMax;
-    else if(gMaxLimit > gMax) gMaxLimit = gMax;
-    else if(gMaxLimit < gMin) gMaxLimit = gMin;
-
-    offset = 0 - (int)iMin;
-    iHistogram.assign((int)(iMax - iMin) + 1, 0);
-
-    for(int x = 0; x < (int)data.size(); x++)
-    for(int y = 0; y < (int)data[0].size(); y++)
-    for(int z = 0; z < (int)data[0][0].size(); z++)
-    {
-        iHistogram[(int)data[x][y][z] + offset] ++;
-    }
-
-    logIHistogram.assign(iHistogram.begin(), iHistogram.end());
-
-    iMaxNum = 0;
-    logIMaxNum = 0;
-
-    for(int i = 0; i < (int)logIHistogram.size(); i++)
-    {
-        if(logIHistogram[i] > 0.0f) 
-            logIHistogram[i] = logf(logIHistogram[i]);
-        
-        iMaxNum = max(iMaxNum, iHistogram[i]);
-        logIMaxNum = max(logIMaxNum, logIHistogram[i]);
-    }
-
-    heatMap.assign((int)(20*log2f(gMaxLimit) - 20*log2f(gMin)) + 1, vector<float>(iHistogram.size(), 0));
-
-    hMaxNum = 0;
-
-    for(int x = 0; x < (int)data.size(); x++)
-    for(int y = 0; y < (int)data[0].size(); y++)
-    for(int z = 0; z < (int)data[0][0].size(); z++)
-    {
-        grad = glm::vec3(dataGradient[x][y][z][0],
-                         dataGradient[x][y][z][1],
-                         dataGradient[x][y][z][2]);
-
-        magnitude = glm::distance(grad, glm::vec3(0.0f));
-
-        if(magnitude < 1.0f) magnitude = 1.0f;
-        else if(magnitude > gMaxLimit) magnitude = gMaxLimit;
-        magnitude = 20*log2f(magnitude);
-
-        heatMap[(int)magnitude][(int)data[x][y][z] + offset] ++;
-    }
-
-    static float* temp = NULL;
-    
-    if(temp) delete[] temp;
-    temp = new float[heatMap.size() * heatMap[0].size()];
-            
-    for(int i = 0; i < (int)(heatMap.size() * heatMap[0].size()); i++)
-    {
-        temp[i] = heatMap[(heatMap.size() - 1) - (i / heatMap[0].size())][i % heatMap[0].size()];
-
-        if( temp[i] > 0.0f ) temp[i] = logf(temp[i]);
-        
-        hMaxNum = max(hMaxNum, temp[i]);
-    }
-
-    heatMap_array = temp;
+VolumeData* FileReader::getVolumeData() const
+{
+    return data;
 }

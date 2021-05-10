@@ -8,6 +8,7 @@
 #include <cmath>
 #include <glm/glm.hpp>
 #include <FileInfo.hpp>
+#include <VolumeData.hpp>
 
 #define WINDOWS_SYSTEM
 #ifdef WINDOWS_SYSTEM
@@ -25,28 +26,12 @@ private:
     vector<string> infNameList;
     vector<string> rawNameList;
     FileInfo *info;
+    VolumeData *data;
     string endian;
-    vector<vector<vector<float>>> data;
-    vector<vector<vector<vector<float>>>> dataGradient;
-
-    vector<float> iHistogram;
-    vector<float> logIHistogram;
-    float iMin;
-    float iMax;
-    int offset;
-    float iMaxNum;
-    float logIMaxNum;
-
-    vector<vector<float>> heatMap;
-    float* heatMap_array;
-    float gMin;
-    float gMax;
-    float hMaxNum;
 
 public:
-    float gMaxLimit;
-
     FileReader(string);
+    ~FileReader();
 
     void initNameList();
     bool isBigEndian();
@@ -56,32 +41,11 @@ public:
     void readRawData(string);
     template<typename T>
     void readRawData(string);
-    void calcuGradient();
-    void calcuGraph();
-    void printRawData() const;
 
-    void setGMaxLimit(float limit) { gMaxLimit = limit; }
-
-    vector<string> getInfNameList() const { return infNameList; }
-    vector<string> getRawNameList() const { return rawNameList; }
-    FileInfo * getInfo() const { return info; }
-    vector<vector<vector<float>>> getData() const { return data; }
-    vector<vector<vector<vector<float>>>> getDataGradient() const { return dataGradient; }
-    vector<float> getIHistogram() const { return iHistogram; }
-    vector<float> getLogIHistogram() const { return logIHistogram; }
-    float getIMin() const { return iMin; }
-    float getIMax() const { return iMax; }
-    float getIMaxNum() const { return iMaxNum; }
-    float getLogIMaxNum() const { return logIMaxNum; }
-    int getOffset() const { return offset; }
-    float* getHeatMap() const { return heatMap_array; }
-    int getHeatMapRows() const { return heatMap.size(); }
-    int getHeatMapCols() const { return heatMap[0].size(); }
-    float getGMin() const { return gMin; }
-    float getGMax() const { return gMax; }
-    float getDecibelMin() const { return (gMin < 1.0f) ? 0.0f: 20 * log(gMin); }
-    float getDecibelMax() const { return 20 * log(gMaxLimit); }
-    float getHMaxNum() const { return hMaxNum; }
+    vector<string> getInfNameList() const;
+    vector<string> getRawNameList() const;
+    FileInfo* getInfo() const;
+    VolumeData* getVolumeData() const;
 };
 
 template<typename T>
@@ -99,21 +63,21 @@ void FileReader::readRawData(string filename)
         exit(1);
     }
 
-    vector<int> res = info->getResolution();
+    glm::vec3 resolution = data->getResolution();
     int sizeOfValue = info->getSizeOfValueType();
-    long long int byteCount = sizeOfValue * res[0] * res[1] * res[2];
+    long long int byteCount = sizeOfValue * resolution.x * resolution.y * resolution.z;
     char *buffer = new char[byteCount];
     
     fs.read(buffer, byteCount);
     fs.close();
 
-    data.assign(res[2], vector<vector<float>>(res[1], vector<float>(res[0])));
+    vector<vector<vector<float>>> vertexValues(resolution.x, vector<vector<float>>(resolution.y, vector<float>(resolution.z)));
     long long int pointer = 0;
     bool toReverse = (endian != info->getEndian()) ? true : false;
 
-    for(int x = 0; x < res[2]; x++)
-    for(int y = 0; y < res[1]; y++)
-    for(int z = 0; z < res[0]; z++)
+    for(int x = 0; x < resolution.x; x++)
+    for(int y = 0; y < resolution.y; y++)
+    for(int z = 0; z < resolution.z; z++)
     {
         if(toReverse)
             reverse(buffer + pointer, buffer + pointer + sizeOfValue);
@@ -122,9 +86,9 @@ void FileReader::readRawData(string filename)
         memcpy(&rawData, buffer + pointer, sizeOfValue);
         pointer += sizeOfValue;
 
-        data[x][y][z] = (float) rawData;
+        vertexValues[x][y][z] = (float) rawData;
     }
 
-    calcuGradient();
-    calcuGraph();
+    data->setData(vertexValues);
+    data->setGradient();
 }
