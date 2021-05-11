@@ -6,8 +6,8 @@ using namespace std;
 
 class VolumeData
 {
-private:
-    glm::vec3 resolution;
+public:
+    glm::ivec3 resolution;
     glm::vec3 voxelSize;
 
     vector<vector<vector<float>>> data;
@@ -19,7 +19,6 @@ private:
     float gradMin;
     float gradMax;
 
-public:
     VolumeData();
     VolumeData(const VolumeData*);
     ~VolumeData();
@@ -27,14 +26,4 @@ public:
     void setVoxelSize(float, float, float);
     void setData(vector<vector<vector<float>>>);
     void setGradient();
-    
-    glm::vec3 getResolution() const;
-    glm::vec3 getVoxelSize() const;
-    vector<vector<vector<float>>> getData() const;
-    float getDataMin() const;
-    float getDataMax() const;
-    vector<vector<vector<vector<float>>>> getGradient() const;
-    vector<vector<vector<float>>> getGradMag() const;
-    float getGradMin() const;
-    float getGradMax() const;
 };

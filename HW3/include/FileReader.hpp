@@ -62,22 +62,21 @@ void FileReader::readRawData(string filename)
         cout << "ERROR::FILEREADER::OPENFILE::" << filename.c_str() << "_FAILED"<< endl;
         exit(1);
     }
-
-    glm::vec3 resolution = data->getResolution();
+    
     int sizeOfValue = info->getSizeOfValueType();
-    long long int byteCount = sizeOfValue * resolution.x * resolution.y * resolution.z;
+    long long int byteCount = sizeOfValue * data->resolution.x * data->resolution.y * data->resolution.z;
     char *buffer = new char[byteCount];
     
     fs.read(buffer, byteCount);
     fs.close();
 
-    vector<vector<vector<float>>> vertexValues(resolution.x, vector<vector<float>>(resolution.y, vector<float>(resolution.z)));
+    vector<vector<vector<float>>> vertexValues(data->resolution.x, vector<vector<float>>(data->resolution.y, vector<float>(data->resolution.z)));
     long long int pointer = 0;
     bool toReverse = (endian != info->getEndian()) ? true : false;
 
-    for(int x = 0; x < resolution.x; x++)
-    for(int y = 0; y < resolution.y; y++)
-    for(int z = 0; z < resolution.z; z++)
+    for(int x = 0; x < data->resolution.x; x++)
+    for(int y = 0; y < data->resolution.y; y++)
+    for(int z = 0; z < data->resolution.z; z++)
     {
         if(toReverse)
             reverse(buffer + pointer, buffer + pointer + sizeOfValue);

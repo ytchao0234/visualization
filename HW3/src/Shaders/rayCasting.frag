@@ -4,8 +4,8 @@ in vec3 texCoord;
 
 out vec4 FragColor;
 
-uniform sampler3D texture_3D;
-uniform sampler1D texture_1D;
+uniform sampler3D tex3D;
+uniform sampler1D tex1D;
 
 uniform vec3 eyePos;
 
@@ -29,7 +29,7 @@ void main()
 {
     // FragColor = vec4(texCoord, 1.0f);
     // return;
-    vec4 texture_color = texture3D(texture_3D, texCoord);
+    vec4 texture_color = texture3D(tex3D, texCoord);
     // FragColor = vec4(texture_color.rgb, 1.0);
 
     // vec3 tex3Coord = texCoord;
@@ -56,12 +56,12 @@ void main()
     //     tex3Coord = tex3Coord + gap * direction;
     // }
 
-    vec4 tex1 = texture1D(texture_1D, texture_color.a);
+    vec4 tex1 = texture1D(tex1D, texture_color.a);
 
     // if(tex1.r > 0.0f)
     //     FragColor = vec4(0.0f, 1.0f, 0.0f, 1.0f);
     // else
-        FragColor = vec4(tex1.rgb, 0.5);
+    FragColor = tex1;
 
     // FragColor = texture_color;
 }

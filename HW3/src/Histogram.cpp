@@ -2,52 +2,65 @@
 
 Histogram::Histogram(const VolumeData* source)
 {
-    static const vector<vector<vector<float>>> data = source->getData();
-    static const float dataMin = source->getDataMin();
-    static const float dataMax = source->getDataMax();
-
-    data_origin.assign((int)(dataMax - dataMin) + 1, 0);
-    rangeMin_origin = dataMin;
-    rangeMax_origin = dataMax;
-    rangeOffset_origin = 0 - dataMin;
+    data_origin.assign((int)(source->dataMax - source->dataMin) + 1, 0);
+    rangeMin_origin = source->dataMin;
+    rangeMax_origin = source->dataMax;
+    rangeOffset_origin = 0 - source->dataMin;
     valueMin_origin = 0.0f;
     valueMax_origin = 0.0f;
 
-    data_log.assign((int)(dataMax - dataMin) + 1, 0);
-    rangeMin_log = dataMin;
-    rangeMax_log = dataMax;
-    rangeOffset_log = 0 - dataMin;
+    data_log.assign((int)(source->dataMax - source->dataMin) + 1, 0);
+    rangeMin_log = source->dataMin;
+    rangeMax_log = source->dataMax;
+    rangeOffset_log = 0 - source->dataMin;
     valueMin_log = 0.0f;
     valueMax_log = 0.0f;
 
-    data_equal.assign(256, 0);
-    rangeMin_equal = 0;
-    rangeMax_equal = 255;
-    rangeOffset_equal = 0;
+    data_equal.assign((int)(source->dataMax - source->dataMin) + 1, 0);
+    rangeMin_equal = source->dataMin;
+    rangeMax_equal = source->dataMax;
+    rangeOffset_equal = 0 - source->dataMin;
     valueMin_equal = 0.0f;
     valueMax_equal = 0.0f;
 
     int index_origin = 0;
-    int index_equal = 0;
 
-    for(auto x: data)
+    for(auto x: source->data)
     for(auto y:    x)
     for(auto z:    y)
     {
         index_origin = z + rangeOffset_origin;
-        index_equal = (z - dataMin) / (dataMax - dataMin) * 255;
-
         data_origin[index_origin] ++;
-        data_equal[index_equal] ++;
-
         valueMax_origin = max(valueMax_origin, data_origin[index_origin]);
-        valueMax_equal = max(valueMax_equal, data_equal[index_equal]);
     }
+    valueMax_equal = valueMax_origin;
 
     for(int i = 0; i < (int)data_origin.size(); i++)
     {
         data_log[i] = logf(data_origin[i]);
         valueMax_log = max(valueMax_log, data_log[i]);
+    }
+
+    vector<float> cdf((int)(source->dataMax - source->dataMin) + 1, 0);
+
+    cdf[0] = data_origin[0];
+    float cdfMin = cdf[0];
+    float cdfMax = cdf[0];
+
+    for(int i = 1; i < (int)data_origin.size(); i++)
+    {
+        cdf[i] = cdf[i - 1] + data_origin[i];
+
+        cdfMin = min(cdfMin, cdf[i]);
+        cdfMax = max(cdfMax, cdf[i]);
+    }
+
+    int index_equal = 0;
+
+    for(int i = 0; i < (int)data_equal.size(); i++)
+    {
+        index_equal = (cdf[i] - cdfMin) / (cdfMax - cdfMin) * data_equal.size();
+        data_equal[index_equal] = data_origin[i];
     }
 }
 

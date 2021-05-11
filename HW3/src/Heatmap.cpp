@@ -2,27 +2,19 @@
 
 Heatmap::Heatmap(const VolumeData* source, float maxLimit)
 {
-    static const glm::vec3 resolution = source->getResolution();
-    static const vector<vector<vector<float>>> sourceData = source->getData();
-    static const float dataMin = source->getDataMin();
-    static const float dataMax = source->getDataMax();
-    static const vector<vector<vector<float>>> gradMag = source->getGradMag();
-    static const float gradMin = source->getGradMin();
-    static const float gradMax = source->getGradMax();
+    rangeMin_intensity = source->dataMin;
+    rangeMax_intensity = source->dataMax;
+    rangeOffset_intensity = 0 - source->dataMin;
 
-    rangeMin_intensity = dataMin;
-    rangeMax_intensity = dataMax;
-    rangeOffset_intensity = 0 - dataMin;
-
-    if(maxLimit > gradMax)
-        maxLimit_gradMag = gradMax;
-    else if(maxLimit < gradMin)
-        maxLimit_gradMag = gradMin;
+    if(maxLimit > source->gradMax)
+        maxLimit_gradMag = source->gradMax;
+    else if(maxLimit < source->gradMin)
+        maxLimit_gradMag = source->gradMin;
     else
         maxLimit_gradMag = maxLimit;
 
-    if(gradMin < 1.0f) rangeMin_gradMag = 0.0f;
-    else rangeMin_gradMag = 20*log2f(gradMin);
+    if(source->gradMin < 1.0f) rangeMin_gradMag = 0.0f;
+    else rangeMin_gradMag = 20*log2f(source->gradMin);
 
     if(maxLimit_gradMag < 1.0f) rangeMax_gradMag = 0.0f;
     else rangeMax_gradMag = 20*log2f(maxLimit_gradMag);
@@ -39,18 +31,18 @@ Heatmap::Heatmap(const VolumeData* source, float maxLimit)
     int index_gradMag = 0;
     int index_intensity = 0;
 
-    for(int x = 0; x < resolution.x; x++)
-    for(int y = 0; y < resolution.y; y++)
-    for(int z = 0; z < resolution.z; z++)
+    for(int x = 0; x < source->resolution.x; x++)
+    for(int y = 0; y < source->resolution.y; y++)
+    for(int z = 0; z < source->resolution.z; z++)
     {
-        if(gradMag[x][y][z] < 1.0f)
+        if(source->gradMag[x][y][z] < 1.0f)
             index_gradMag = 0;
-        else if(gradMag[x][y][z] > maxLimit_gradMag)
+        else if(source->gradMag[x][y][z] > maxLimit_gradMag)
             index_gradMag = 20*log2f(maxLimit_gradMag);
         else
-            index_gradMag = 20*log2f(gradMag[x][y][z]);
+            index_gradMag = 20*log2f(source->gradMag[x][y][z]);
 
-        index_intensity = sourceData[x][y][z] + rangeOffset_intensity;
+        index_intensity = source->data[x][y][z] + rangeOffset_intensity;
 
         temp[index_gradMag][index_intensity] ++;
     }

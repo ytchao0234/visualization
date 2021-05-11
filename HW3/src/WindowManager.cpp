@@ -65,7 +65,7 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
     ImGui::SetNextWindowSize(ImVec2(300, 420), ImGuiCond_Once);
 
     static bool toRenderGraph = false;
-    static float gMaxLimit = fr->getVolumeData()->getGradMax();
+    static float gMaxLimit = fr->getVolumeData()->gradMax;
 
     ImGui::Begin("Main Menu");
     {
@@ -136,11 +136,17 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
             }
             ImGui::EndCombo();
         }
+        
+        if(selectedMethod == "Isosurface")
+            if(ImGui::SliderInt(to_string((int)(fr->getVolumeData()->dataMax)).c_str(), &isovalue,
+                            fr->getVolumeData()->dataMin, fr->getVolumeData()->dataMax))
+                toLoad = true;
+
 
         if(ImGui::Button("Read File"))
         {
             fr->readFile(selectedInf, selectedRaw);
-            gMaxLimit = fr->getVolumeData()->getGradMax();
+            gMaxLimit = fr->getVolumeData()->gradMax;
 
             if(histogram != NULL) delete histogram;
             histogram = new Histogram(fr->getVolumeData());
@@ -160,16 +166,14 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
 
         if(toLoad)
         {
-            if(selectedMethod == "Isosurface")
-                ImGui::SliderInt(to_string((int)(fr->getVolumeData()->getDataMax())).c_str(), &isovalue,
-                                fr->getVolumeData()->getDataMin(), fr->getVolumeData()->getDataMax());
-
             if(ImGui::Button("Load Single"))
             {
                 volumeList.clear();
 
                 if(selectedMethod == "Isosurface")
                     volumeList.push_back(new Isosurface(fr->getVolumeData(), isovalue));
+                else if(selectedMethod == "Ray Casting")
+                    volumeList.push_back(new RayCasting(fr->getVolumeData()));
 
                 volumeList.back()->makeVertices();
                 toLoad = false;
@@ -181,6 +185,8 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
             {
                 if(selectedMethod == "Isosurface")
                     volumeList.push_back(new Isosurface(fr->getVolumeData(), isovalue));
+                else if(selectedMethod == "Ray Casting")
+                    volumeList.push_back(new RayCasting(fr->getVolumeData()));
 
                 volumeList.back()->makeVertices();
                 toLoad = false;
@@ -215,10 +221,10 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
         {
             if(ImGui::CollapsingHeader("Histogram") && histogram != NULL)
             {
-                static bool toLog = true;
+                static bool toLog = false;
                 static bool toEqual = false;
-                if(ImGui::Checkbox("Log", &toLog)) toEqual = !toLog;
-                if(ImGui::Checkbox("Equalize", &toEqual)) toLog = !toEqual;
+                if(ImGui::Checkbox("Log", &toLog) && toLog) toEqual = false;
+                if(ImGui::Checkbox("Equalize", &toEqual) && toEqual) toLog = false;
 
                 static bool changeHistogram = false;
                 ImGui::Checkbox("ImGui Histogram", &changeHistogram);
@@ -282,13 +288,13 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
             if(ImGui::CollapsingHeader("Heat Map") && heatmap != NULL)
             {
                 ImGui::Text("gMax: ");
-                ImGui::Text(to_string(fr->getVolumeData()->getGradMin()).c_str());
+                ImGui::Text(to_string(fr->getVolumeData()->gradMin).c_str());
                 ImGui::SameLine();
-                ImGui::SliderFloat(to_string(fr->getVolumeData()->getGradMax()).c_str(), &gMaxLimit, fr->getVolumeData()->getGradMin(), fr->getVolumeData()->getGradMax());
+                ImGui::SliderFloat(to_string(fr->getVolumeData()->gradMax).c_str(), &gMaxLimit, fr->getVolumeData()->gradMin, fr->getVolumeData()->gradMax);
 
                 if(ImGui::Button("Reload Heat Map"))
                 {
-                    if(heatmap != NULL) delete heatmap;
+                    delete heatmap;
                     heatmap = new Heatmap(fr->getVolumeData(), gMaxLimit);
                 }
 

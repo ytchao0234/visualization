@@ -2,7 +2,7 @@
 
 VolumeData::VolumeData()
 {
-    this->resolution = glm::vec3(0.0f, 0.0f, 0.0f);
+    this->resolution = glm::ivec3(0.0f, 0.0f, 0.0f);
     this->voxelSize = glm::vec3(0.0f, 0.0f, 0.0f);
 
     this->data.clear();
@@ -17,17 +17,17 @@ VolumeData::VolumeData()
 
 VolumeData::VolumeData(const VolumeData* that)
 {
-    this->resolution = that->getResolution();
-    this->voxelSize = that->getVoxelSize() ;
+    this->resolution = that->resolution;
+    this->voxelSize = that->voxelSize;
 
-    this->data = that->getData();
-    this->dataMin = that->getDataMin();
-    this->dataMax = that->getDataMax();
+    this->data = that->data;
+    this->dataMin = that->dataMin;
+    this->dataMax = that->dataMax;
 
-    this->gradient = that->getGradient();
-    this->gradMag = that->getGradMag();
-    this->gradMin = that->getGradMin();
-    this->gradMax = that->getGradMax();
+    this->gradient = that->gradient;
+    this->gradMag = that->gradMag;
+    this->gradMin = that->gradMin;
+    this->gradMax = that->gradMax;
 }
 
 VolumeData::~VolumeData()
@@ -37,7 +37,7 @@ VolumeData::~VolumeData()
 
 void VolumeData::setResolution(int x, int y, int z)
 {
-    this->resolution = glm::vec3(x, y, z);
+    this->resolution = glm::ivec3(x, y, z);
 
     data.assign(x, vector<vector<float>>(y, vector<float>(z, 0)));
     gradient.assign(x, vector<vector<vector<float>>>(y, vector<vector<float>>(z, vector<float>())));
@@ -49,15 +49,15 @@ void VolumeData::setVoxelSize(float x, float y, float z)
     this->voxelSize = glm::vec3(x, y, z);
 }
 
-void VolumeData::setData(vector<vector<vector<float>>> data)
+void VolumeData::setData(vector<vector<vector<float>>> thatData)
 {
-    this->data = data;
+    this->data.assign(thatData.begin(), thatData.end());
 
     dataMin = dataMax = data[0][0][0];
 
-    for(auto x: data)
-    for(auto y:    x)
-    for(auto z:    y)
+    for(auto x: this->data)
+    for(auto y:          x)
+    for(auto z:          y)
     {
         dataMin = min(dataMin, z);
         dataMax = max(dataMax, z);
@@ -108,49 +108,4 @@ void VolumeData::setGradient()
         gradMin = min(gradMin, z);
         gradMax = max(gradMax, z);
     }
-}
-
-glm::vec3 VolumeData::getResolution() const
-{
-    return this->resolution;
-}
-
-glm::vec3 VolumeData::getVoxelSize() const
-{
-    return this->voxelSize;
-}
-
-vector<vector<vector<float>>> VolumeData::getData() const
-{
-    return this->data;
-}
-
-float VolumeData::getDataMin() const
-{
-    return this->dataMin;
-}
-
-float VolumeData::getDataMax() const
-{
-    return this->dataMax;
-}
-
-vector<vector<vector<vector<float>>>> VolumeData::getGradient() const
-{
-    return this->gradient;
-}
-
-vector<vector<vector<float>>> VolumeData::getGradMag() const
-{
-    return this->gradMag;
-}
-
-float VolumeData::getGradMin() const
-{
-    return this->gradMin;
-}
-
-float VolumeData::getGradMax() const
-{
-    return this->gradMax;
 }

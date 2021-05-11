@@ -26,6 +26,8 @@ public:
     void makeVertices();
     void bindVertices();
     virtual void draw(glm::mat4, glm::mat4, const vector<float>, bool);
+    void setShader();
+    Shader* getShader() const;
 
     Isosurface(const VolumeData*, int);
     ~Isosurface();
@@ -34,6 +36,4 @@ public:
     void marchSingleCube(int, int, int);
     void setVertices(vector<int>, vector<int>);
     void setIsovalue(float);
-    void setShader();
-    Shader* getShader() const;
 };

@@ -45,15 +45,13 @@ void Isosurface::bindVertices()
 
 void Isosurface::draw(glm::mat4 projection, glm::mat4 view, const vector<float> clipping, bool makeCrossSection)
 {
-    static const glm::vec3 voxelSize = data->getVoxelSize();
-
     shader->use();
 
     shader->setMatrix4("projection", glm::value_ptr(projection));
     shader->setMatrix4("view", glm::value_ptr(view));
 
     glm::mat4 model = glm::mat4(1.0f);
-    model = glm::scale(model, glm::vec3(voxelSize.x, voxelSize.y, voxelSize.z));
+    model = glm::scale(model, glm::vec3(data->voxelSize.x, data->voxelSize.y, data->voxelSize.z));
     shader->setMatrix4("model", glm::value_ptr(model));
 
     shader->setFloatVec("clipping", clipping, 4);
@@ -74,13 +72,11 @@ void Isosurface::setShader()
 
 void Isosurface::marchingCube()
 {
-    static const glm::vec3 resolution = data->getResolution();
-
     vertices.clear();
 
-    for(int x = 0; x < resolution.x - 1; x++)
-    for(int y = 0; y < resolution.y - 1; y++)
-    for(int z = 0; z < resolution.z - 1; z++)
+    for(int x = 0; x < data->resolution.x - 1; x++)
+    for(int y = 0; y < data->resolution.y - 1; y++)
+    for(int z = 0; z < data->resolution.z - 1; z++)
     {
         marchSingleCube(x, y, z);
     }
@@ -90,8 +86,6 @@ void Isosurface::marchingCube()
 
 void Isosurface::marchSingleCube(int x, int y, int z)
 {
-    static const vector<vector<vector<float>>> vertexValues = this->data->getData();
-
     int compareWithIsovalue = 0;
 
     for(int i = 0; i < 8; i++)
@@ -100,7 +94,7 @@ void Isosurface::marchSingleCube(int x, int y, int z)
         int yoffset = offsetFromBaseVertex[i][1];
         int zoffset = offsetFromBaseVertex[i][2];
 
-        if( vertexValues[x + xoffset][y + yoffset][z + zoffset] > isovalue )
+        if( data->data[x + xoffset][y + yoffset][z + zoffset] > isovalue )
         {
             compareWithIsovalue |= (1 << i);
         }
@@ -117,10 +111,6 @@ void Isosurface::marchSingleCube(int x, int y, int z)
 
 void Isosurface::setVertices(vector<int> baseVertex, vector<int> interEdges)
 {
-    static const vector<vector<vector<float>>> vertexValues = this->data->getData();
-    static const vector<vector<vector<vector<float>>>> gradient = this->data->getGradient();
-    static const glm::vec3 resolution = data->getResolution();
-
     glm::vec3 base;
     glm::vec3 direction;
     float ratio;
@@ -139,18 +129,18 @@ void Isosurface::setVertices(vector<int> baseVertex, vector<int> interEdges)
 
         base = glm::vec3(x0, y0, z0);
         direction = glm::vec3( x1-x0, y1-y0, z1-z0 );
-        ratio = (isovalue - vertexValues[x0][y0][z0]) / (vertexValues[x1][y1][z1] - vertexValues[x0][y0][z0]);
+        ratio = (isovalue - data->data[x0][y0][z0]) / (data->data[x1][y1][z1] - data->data[x0][y0][z0]);
 
-        vertices.push_back(base.x + ratio * direction.x - int(resolution.x / 2));
-        vertices.push_back(base.y + ratio * direction.y - int(resolution.y / 2));
-        vertices.push_back(base.z + ratio * direction.z - int(resolution.z / 2));
+        vertices.push_back(base.x + ratio * direction.x - int(data->resolution.x / 2));
+        vertices.push_back(base.y + ratio * direction.y - int(data->resolution.y / 2));
+        vertices.push_back(base.z + ratio * direction.z - int(data->resolution.z / 2));
 
-        glm::vec3 grad = glm::vec3(gradient[x0][y0][z0][0] * (1.0f-ratio) +
-                                   gradient[x1][y1][z1][0] * ratio,
-                                   gradient[x0][y0][z0][1] * (1.0f-ratio) +
-                                   gradient[x1][y1][z1][1] * ratio,
-                                   gradient[x0][y0][z0][2] * (1.0f-ratio) +
-                                   gradient[x1][y1][z1][2] * ratio);
+        glm::vec3 grad = glm::vec3(data->gradient[x0][y0][z0][0] * (1.0f-ratio) +
+                                   data->gradient[x1][y1][z1][0] * ratio,
+                                   data->gradient[x0][y0][z0][1] * (1.0f-ratio) +
+                                   data->gradient[x1][y1][z1][1] * ratio,
+                                   data->gradient[x0][y0][z0][2] * (1.0f-ratio) +
+                                   data->gradient[x1][y1][z1][2] * ratio);
         
         grad = glm::normalize(grad);
 

@@ -10,17 +10,14 @@ using namespace std;
 class Texture
 {
 private:
-    // int number;
-    // unsigned int* tex;
-    unsigned int tex3D;
-    unsigned int tex2D;
-    unsigned int tex1D;
+    int number;
+    unsigned int *tex;
 
 public:
     Texture(int);
     ~Texture();
-    void make3DTexture(unsigned char (*)[4], int, int, int);
-    void make1DTexture(unsigned char (*)[4], int);
+    void make3DTexture(int, unsigned char (*)[4], int, int, int);
+    void make1DTexture(int, unsigned char (*)[4], int);
     void active1D(int);
     void active2D(int);
     void active3D(int);

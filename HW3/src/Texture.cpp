@@ -2,28 +2,27 @@
 
 Texture::Texture(int number)
 {
-    // if(number < 1)
-    // {
-    //     cout << "ERROR::TEXTURE::NUMBER::INVALID\n" << endl;
-    //     exit(1);
-    // }
+    if(number < 1)
+    {
+        cout << "ERROR::TEXTURE::NUMBER::INVALID\n" << endl;
+        exit(1);
+    }
 
-    // this->number = number;
-    // tex = new unsigned int[number];
-    // glGenTextures(number, tex);
+    this->number = number;
+    this->tex = new unsigned int[number];
+    glGenTextures(number, tex);
 }
 
 Texture::~Texture()
 {
-    // if(number == 1) delete tex;
-    // else if(number > 1) delete[] tex;
+    if(number == 1) delete tex;
+    else if(number > 1) delete[] tex;
 }
 
-void Texture::make3DTexture(unsigned char (*data)[4], int width, int height, int depth)
+void Texture::make3DTexture(int order, unsigned char (*data)[4], int width, int height, int depth)
 {
-    glGenTextures(1, &tex3D);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_3D, tex3D);
+    glActiveTexture(GL_TEXTURE0 + order);
+    glBindTexture(GL_TEXTURE_3D, this->tex[order]);
 
     glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
     glTexImage3D(
@@ -46,11 +45,10 @@ void Texture::make3DTexture(unsigned char (*data)[4], int width, int height, int
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 }
 
-void Texture::make1DTexture(unsigned char (*data)[4], int length)
+void Texture::make1DTexture(int order, unsigned char (*data)[4], int length)
 {
-    glGenTextures(1, &tex1D);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_1D, tex1D);
+    glActiveTexture(GL_TEXTURE0 + order);
+    glBindTexture(GL_TEXTURE_1D, this->tex[order]);
 
     glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
     glTexImage1D(
@@ -72,17 +70,17 @@ void Texture::make1DTexture(unsigned char (*data)[4], int length)
 void Texture::active1D(int order)
 {
     glActiveTexture(GL_TEXTURE0 + order);
-    glBindTexture(GL_TEXTURE_1D, tex1D);
+    glBindTexture(GL_TEXTURE_1D, tex[order]);
 }
 
 void Texture::active2D(int order)
 {
     glActiveTexture(GL_TEXTURE0 + order);
-    glBindTexture(GL_TEXTURE_2D, tex2D);
+    glBindTexture(GL_TEXTURE_2D, tex[order]);
 }
 
 void Texture::active3D(int order)
 {
     glActiveTexture(GL_TEXTURE0 + order);
-    glBindTexture(GL_TEXTURE_3D, tex3D);
+    glBindTexture(GL_TEXTURE_3D, tex[order]);
 }

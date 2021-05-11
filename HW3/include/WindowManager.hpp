@@ -11,6 +11,7 @@
 #include <Heatmap.hpp>
 #include <Method.hpp>
 #include <Isosurface.hpp>
+#include <RayCasting.hpp>
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_glfw.h>
