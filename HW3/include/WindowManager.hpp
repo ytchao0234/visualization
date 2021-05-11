@@ -1,5 +1,6 @@
 #pragma once
 #include <iostream>
+#include <algorithm>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -46,7 +47,13 @@ public:
     ~WindowManager();
 
     void initGUI();
-    void renderGUI(vector<string>, vector<string>);
+    void renderGUI();
+    void makeMainMenu(bool&, float&);
+    void makeGraph(float&);
+    void makeCanvas();
+    vector<glm::vec2>::iterator getIntersectedPoint(vector<glm::vec2>&, glm::vec2);
+    void drawPoints(ImDrawList*, vector<glm::vec2>, glm::vec2, ImU32, glm::vec2);
+    void drawLine(ImDrawList*, vector<glm::vec2>, glm::vec2, ImU32);
 
     void initCallbacks();
     void initObjects();

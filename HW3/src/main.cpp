@@ -18,11 +18,11 @@ int main()
         
         for(auto volume: wm.getVolumeList())
         {
-            wm.getLight()->lighting(volume->getShader(), wm.getCamera()->getPosition());
+            wm.getLight()->lighting(volume->getShader(), wm.getCamera()->getPosition(), wm.getCamera()->getDirection());
             volume->draw(wm.getCamera()->getProjection(wm.getWidth(), wm.getHeight()), wm.getCamera()->getView(), wm.getClipping(), wm.getMakeCrossSection());
         }
 
-        wm.renderGUI(wm.getFileReader()->getInfNameList(), wm.getFileReader()->getRawNameList());
+        wm.renderGUI();
 
         wm.checkKeyPress();
         glfwPollEvents();

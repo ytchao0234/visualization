@@ -53,7 +53,7 @@ void WindowManager::initGUI()
     
 }
 
-void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFileList)
+void WindowManager::renderGUI()
 {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
@@ -61,12 +61,30 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
 
     // ImPlot::ShowDemoWindow();
 
-    ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_Once);
-    ImGui::SetNextWindowSize(ImVec2(300, 420), ImGuiCond_Once);
-
     static bool toRenderGraph = false;
     static float gMaxLimit = fr->getVolumeData()->gradMax;
 
+    ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(300, 420), ImGuiCond_Once);
+    makeMainMenu(toRenderGraph, gMaxLimit);
+
+    if(toRenderGraph)
+    {
+        ImGui::SetNextWindowPos(ImVec2(10, height - 460 - 10), ImGuiCond_Once);
+        ImGui::SetNextWindowSize(ImVec2(450, 460), ImGuiCond_Once);
+        makeGraph(gMaxLimit);
+    }
+
+    ImGui::SetNextWindowPos(ImVec2(width - 360 - 10, height - 460 - 10), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(360, 420), ImGuiCond_Once);
+    makeCanvas();
+    
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}
+
+void WindowManager::makeMainMenu(bool& toRenderGraph, float& gMaxLimit)
+{
     ImGui::Begin("Main Menu");
     {
         ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
@@ -101,15 +119,15 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
 
         if (ImGui::BeginCombo(".inf", selectedInf.c_str()))
         {
-            for (int i = 0; i < (int)infFileList.size(); i++)
+            for (auto inf: fr->getInfNameList())
             {
-                if(ImGui::Selectable(infFileList[i].c_str()))
+                if(ImGui::Selectable(inf.c_str()))
                 {
-                    selectedInf = infFileList[i];
+                    selectedInf = inf;
                     selectedRaw = selectedInf;
                     toLoad = false;
                 }
-                if(selectedInf == infFileList[i])
+                if(selectedInf == inf)
                 {
                     ImGui::SetItemDefaultFocus();
                 }
@@ -119,16 +137,16 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
 
         if (ImGui::BeginCombo(".raw", selectedRaw.c_str()))
         {
-            for (int i = 0; i < (int)rawFileList.size(); i++)
+            for (auto raw: fr->getRawNameList())
             {
-                if(strstr(rawFileList[i].c_str(), selectedInf.c_str()))
+                if(strstr(raw.c_str(), selectedInf.c_str()))
                 {
-                    if(ImGui::Selectable(rawFileList[i].c_str()))
+                    if(ImGui::Selectable(raw.c_str()))
                     {
-                        selectedRaw = rawFileList[i];
+                        selectedRaw = raw;
                         toLoad = false;
                     }
-                    if(selectedRaw == rawFileList[i])
+                    if(selectedRaw == raw)
                     {
                         ImGui::SetItemDefaultFocus();
                     }
@@ -137,7 +155,7 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
             ImGui::EndCombo();
         }
         
-        if(selectedMethod == "Isosurface")
+        if(selectedMethod == "Isosurface" && fr->getVolumeData()->dataMax > 0)
             if(ImGui::SliderInt(to_string((int)(fr->getVolumeData()->dataMax)).c_str(), &isovalue,
                             fr->getVolumeData()->dataMin, fr->getVolumeData()->dataMax))
                 toLoad = true;
@@ -211,118 +229,241 @@ void WindowManager::renderGUI(vector<string> infFileList, vector<string> rawFile
         ImGui::SliderFloat("offset", &clipping[3], -500.0f, 500.0f);
         ImGui::Checkbox("make cross-section", &makeCrossSection);
     } ImGui::End();
+}
 
-    ImGui::SetNextWindowPos(ImVec2(10, height - 460 - 10), ImGuiCond_Once);
-    ImGui::SetNextWindowSize(ImVec2(460, 460), ImGuiCond_Once);
-
-    if(toRenderGraph)
+void WindowManager::makeGraph(float& gMaxLimit)
+{
+    ImGui::Begin("Graph");
     {
-        ImGui::Begin("Graph");
+        if(ImGui::CollapsingHeader("Histogram") && histogram != NULL)
         {
-            if(ImGui::CollapsingHeader("Histogram") && histogram != NULL)
+            static bool toLog = false;
+            static bool toEqual = false;
+            if(ImGui::Checkbox("Log", &toLog) && toLog) toEqual = false;
+            if(ImGui::Checkbox("Equalize", &toEqual) && toEqual) toLog = false;
+
+            static bool changeHistogram = false;
+            ImGui::Checkbox("ImGui Histogram", &changeHistogram);
+
+            if(changeHistogram)
             {
-                static bool toLog = false;
-                static bool toEqual = false;
-                if(ImGui::Checkbox("Log", &toLog) && toLog) toEqual = false;
-                if(ImGui::Checkbox("Equalize", &toEqual) && toEqual) toLog = false;
-
-                static bool changeHistogram = false;
-                ImGui::Checkbox("ImGui Histogram", &changeHistogram);
-
-                if(changeHistogram)
+                if(toLog)
+                    ImGui::PlotHistogram("", histogram->getData("LOG").data(), histogram->getRangeMax("LOG") - histogram->getRangeMin("LOG") + 1,
+                                        0, "Frequency of Intensity", (float)histogram->getValueMin("LOG"),
+                                        (float)histogram->getValueMax("LOG"), ImVec2(430, 300));
+                if(toEqual)
+                    ImGui::PlotHistogram("", histogram->getData("EQUAL").data(), histogram->getRangeMax("EQUAL") - histogram->getRangeMin("EQUAL") + 1,
+                                        0, "Frequency of Intensity", (float)histogram->getValueMin("EQUAL"),
+                                        (float)histogram->getValueMax("EQUAL"), ImVec2(430, 300));
+                else
+                    ImGui::PlotHistogram("", histogram->getData("ORIGIN").data(), histogram->getRangeMax("ORIGIN") - histogram->getRangeMin("ORIGIN") + 1,
+                                        0, "Frequency of Intensity", (float)histogram->getValueMin("ORIGIN"),
+                                        (float)histogram->getValueMax("ORIGIN"), ImVec2(430, 300));
+            }
+            else
+            {
+                if(toLog)
                 {
-                    if(toLog)
-                        ImGui::PlotHistogram("", histogram->getData("LOG").data(), histogram->getRangeMax("LOG") - histogram->getRangeMin("LOG") + 1,
-                                            0, "Frequency of Intensity", (float)histogram->getValueMin("LOG"),
-                                            (float)histogram->getValueMax("LOG"), ImVec2(430, 300));
-                    if(toEqual)
-                        ImGui::PlotHistogram("", histogram->getData("EQUAL").data(), histogram->getRangeMax("EQUAL") - histogram->getRangeMin("EQUAL") + 1,
-                                            0, "Frequency of Intensity", (float)histogram->getValueMin("EQUAL"),
-                                            (float)histogram->getValueMax("EQUAL"), ImVec2(430, 300));
-                    else
-                        ImGui::PlotHistogram("", histogram->getData("ORIGIN").data(), histogram->getRangeMax("ORIGIN") - histogram->getRangeMin("ORIGIN") + 1,
-                                            0, "Frequency of Intensity", (float)histogram->getValueMin("ORIGIN"),
-                                            (float)histogram->getValueMax("ORIGIN"), ImVec2(430, 300));
+                    ImPlot::SetNextPlotLimits(histogram->getRangeMin("LOG"), histogram->getRangeMax("LOG"),
+                                                histogram->getValueMin("LOG"), histogram->getValueMax("LOG"), ImGuiCond_Always);
+
+                    if (ImPlot::BeginPlot("Frequency of Intensity", "Intensity", "Frequency")) {
+                        
+                        ImPlot::PlotBars("frequency", histogram->getData("LOG").data(), histogram->getRangeMax("LOG") - histogram->getRangeMin("LOG") + 1,
+                                            0.67f, 0.0f, histogram->getRangeOffset("LOG"));
+                        ImPlot::EndPlot();
+                    }
+                }
+                if(toEqual)
+                {
+                    ImPlot::SetNextPlotLimits(histogram->getRangeMin("EQUAL"), histogram->getRangeMax("EQUAL"),
+                                                histogram->getValueMin("EQUAL"), histogram->getValueMax("EQUAL"), ImGuiCond_Always);
+
+                    if (ImPlot::BeginPlot("Frequency of Intensity", "Intensity", "Frequency")) {
+                        
+                        ImPlot::PlotBars("frequency", histogram->getData("EQUAL").data(), histogram->getRangeMax("EQUAL") - histogram->getRangeMin("EQUAL") + 1,
+                                            0.67f, 0.0f, histogram->getRangeOffset("EQUAL"));
+                        ImPlot::EndPlot();
+                    }
                 }
                 else
                 {
-                    if(toLog)
-                    {
-                        ImPlot::SetNextPlotLimits(histogram->getRangeMin("LOG"), histogram->getRangeMax("LOG"),
-                                                  histogram->getValueMin("LOG"), histogram->getValueMax("LOG"), ImGuiCond_Always);
+                    ImPlot::SetNextPlotLimits(histogram->getRangeMin("ORIGIN"), histogram->getRangeMax("ORIGIN"),
+                                                histogram->getValueMin("ORIGIN"), histogram->getValueMax("ORIGIN"), ImGuiCond_Always);
 
-                        if (ImPlot::BeginPlot("Frequency of Intensity", "Intensity", "Frequency")) {
-                            
-                            ImPlot::PlotBars("frequency", histogram->getData("LOG").data(), histogram->getRangeMax("LOG") - histogram->getRangeMin("LOG") + 1,
-                                             0.67f, 0.0f, histogram->getRangeOffset("LOG"));
-                            ImPlot::EndPlot();
-                        }
-                    }
-                    if(toEqual)
-                    {
-                        ImPlot::SetNextPlotLimits(histogram->getRangeMin("EQUAL"), histogram->getRangeMax("EQUAL"),
-                                                  histogram->getValueMin("EQUAL"), histogram->getValueMax("EQUAL"), ImGuiCond_Always);
-
-                        if (ImPlot::BeginPlot("Frequency of Intensity", "Intensity", "Frequency")) {
-                            
-                            ImPlot::PlotBars("frequency", histogram->getData("EQUAL").data(), histogram->getRangeMax("EQUAL") - histogram->getRangeMin("EQUAL") + 1,
-                                             0.67f, 0.0f, histogram->getRangeOffset("EQUAL"));
-                            ImPlot::EndPlot();
-                        }
-                    }
-                    else
-                    {
-                        ImPlot::SetNextPlotLimits(histogram->getRangeMin("ORIGIN"), histogram->getRangeMax("ORIGIN"),
-                                                  histogram->getValueMin("ORIGIN"), histogram->getValueMax("ORIGIN"), ImGuiCond_Always);
-
-                        if (ImPlot::BeginPlot("Frequency of Intensity", "Intensity", "Frequency")) {
-                            
-                            ImPlot::PlotBars("frequency", histogram->getData("ORIGIN").data(), histogram->getRangeMax("ORIGIN") - histogram->getRangeMin("ORIGIN") + 1,
-                                             0.67f, 0.0f, histogram->getRangeOffset("ORIGIN"));
-                            ImPlot::EndPlot();
-                        }
+                    if (ImPlot::BeginPlot("Frequency of Intensity", "Intensity", "Frequency")) {
+                        
+                        ImPlot::PlotBars("frequency", histogram->getData("ORIGIN").data(), histogram->getRangeMax("ORIGIN") - histogram->getRangeMin("ORIGIN") + 1,
+                                            0.67f, 0.0f, histogram->getRangeOffset("ORIGIN"));
+                        ImPlot::EndPlot();
                     }
                 }
             }
+        }
 
-            if(ImGui::CollapsingHeader("Heat Map") && heatmap != NULL)
+        if(ImGui::CollapsingHeader("Heat Map") && heatmap != NULL)
+        {
+            ImGui::Text("gMax: ");
+            ImGui::Text(to_string(fr->getVolumeData()->gradMin).c_str());
+            ImGui::SameLine();
+            ImGui::SliderFloat(to_string(fr->getVolumeData()->gradMax).c_str(), &gMaxLimit, fr->getVolumeData()->gradMin, fr->getVolumeData()->gradMax);
+
+            if(ImGui::Button("Reload Heat Map"))
             {
-                ImGui::Text("gMax: ");
-                ImGui::Text(to_string(fr->getVolumeData()->gradMin).c_str());
-                ImGui::SameLine();
-                ImGui::SliderFloat(to_string(fr->getVolumeData()->gradMax).c_str(), &gMaxLimit, fr->getVolumeData()->gradMin, fr->getVolumeData()->gradMax);
-
-                if(ImGui::Button("Reload Heat Map"))
-                {
-                    delete heatmap;
-                    heatmap = new Heatmap(fr->getVolumeData(), gMaxLimit);
-                }
-
-                static ImVec4 gray[2] = {ImVec4(0,0,0,1), ImVec4(1,1,1,1)};
-                ImPlot::SetColormap(gray, 2);
-
-                ImPlot::SetNextPlotLimits(heatmap->getRangeMin("INTENSITY"), heatmap->getRangeMax("INTENSITY"),
-                                          heatmap->getRangeMin("GRADMAG"), heatmap->getRangeMax("GRADMAG"), ImGuiCond_Always);
-
-                static ImPlotAxisFlags axes_flags = ImPlotAxisFlags_LockMin | ImPlotAxisFlags_LockMax | ImPlotAxisFlags_TickLabels;
-
-                if (ImPlot::BeginPlot("","Intensity","Magnitude of Gradient",ImVec2(370,310),0,axes_flags,axes_flags))
-                {
-                    ImPlot::PlotHeatmap("frequency",heatmap->getData().data(), heatmap->getRangeMax("GRADMAG") - heatmap->getRangeMin("GRADMAG") + 1,
-                                        heatmap->getRangeMax("INTENSITY") - heatmap->getRangeMin("INTENSITY") + 1, 0, heatmap->getValueMax(), NULL,
-                                        ImPlotPoint(heatmap->getRangeMin("INTENSITY"), heatmap->getRangeMin("GRADMAG")),
-                                        ImPlotPoint(heatmap->getRangeMax("INTENSITY"), heatmap->getRangeMax("GRADMAG")));
-                    ImPlot::EndPlot();
-                }
-                ImGui::SameLine();
-                ImPlot::ShowColormapScale(0, heatmap->getValueMax(), 310);
-                ImPlot::SetColormap(ImPlotColormap_Default);
+                delete heatmap;
+                heatmap = new Heatmap(fr->getVolumeData(), gMaxLimit);
             }
-        }ImGui::End();
+
+            static ImVec4 gray[2] = {ImVec4(0,0,0,1), ImVec4(1,1,1,1)};
+            ImPlot::SetColormap(gray, 2);
+
+            ImPlot::SetNextPlotLimits(heatmap->getRangeMin("INTENSITY"), heatmap->getRangeMax("INTENSITY"),
+                                        heatmap->getRangeMin("GRADMAG"), heatmap->getRangeMax("GRADMAG"), ImGuiCond_Always);
+
+            static ImPlotAxisFlags axes_flags = ImPlotAxisFlags_LockMin | ImPlotAxisFlags_LockMax | ImPlotAxisFlags_TickLabels;
+
+            if (ImPlot::BeginPlot("","Intensity","Magnitude of Gradient",ImVec2(370,310),0,axes_flags,axes_flags))
+            {
+                ImPlot::PlotHeatmap("frequency",heatmap->getData().data(), heatmap->getRangeMax("GRADMAG") - heatmap->getRangeMin("GRADMAG") + 1,
+                                    heatmap->getRangeMax("INTENSITY") - heatmap->getRangeMin("INTENSITY") + 1, 0, heatmap->getValueMax(), NULL,
+                                    ImPlotPoint(heatmap->getRangeMin("INTENSITY"), heatmap->getRangeMin("GRADMAG")),
+                                    ImPlotPoint(heatmap->getRangeMax("INTENSITY"), heatmap->getRangeMax("GRADMAG")));
+                ImPlot::EndPlot();
+            }
+            ImGui::SameLine();
+            ImPlot::ShowColormapScale(0, heatmap->getValueMax(), 310);
+            ImPlot::SetColormap(ImPlotColormap_Default);
+        }
+    }ImGui::End();
+}
+
+bool comparePoint(glm::vec2 a, glm::vec2 b)
+{
+    return a.x < b.x;
+}
+
+void WindowManager::makeCanvas()
+{
+    ImGui::Begin("Transfer Function");
+    {
+        static vector<glm::vec2> points, points_red, points_green, points_blue, points_alpha;
+        static ImU32 RED  = IM_COL32(255, 0, 0, 255), GREEN = IM_COL32(0, 255, 0, 255),
+                     BLUE = IM_COL32(0, 0, 255, 255), ALPHA = IM_COL32(180, 180, 180, 255);
+        static bool toAddLine = false;
+
+        static int color = 0;
+        ImGui::RadioButton("Red"  , &color, 0); ImGui::SameLine();
+        ImGui::RadioButton("Green", &color, 1); ImGui::SameLine();
+        ImGui::RadioButton("Blue" , &color, 2); ImGui::SameLine();
+        ImGui::RadioButton("Alpha", &color, 3); ImGui::SameLine();
+
+        if(ImGui::Button("Clear Canvas"))
+        {
+            points.clear();
+            points_red.clear();
+            points_green.clear();
+            points_blue.clear();
+            points_alpha.clear();
+        }
+
+        ImGui::NewLine();
+
+        static ImVec2 canvas_size = ImVec2(340.0f, 340.0f);
+        static ImVec2 canvas_topleft = ImGui::GetCursorScreenPos();
+        static ImVec2 canvas_buttomright = ImVec2(canvas_topleft.x + canvas_size.x, canvas_topleft.y + canvas_size.y);
+
+        ImDrawList* draw_api = ImGui::GetWindowDrawList();
+        draw_api->AddRectFilled(canvas_topleft, canvas_buttomright, IM_COL32(50, 50, 50, 255));
+        draw_api->AddRect(canvas_topleft, canvas_buttomright, IM_COL32(255, 255, 255, 255));
+
+        const float GRID_STEP = 34.0f;
+        for (float x = 0.0f; x < canvas_size.x; x += GRID_STEP)
+            draw_api->AddLine(ImVec2(canvas_topleft.x + x, canvas_topleft.y), ImVec2(canvas_topleft.x + x, canvas_buttomright.y), IM_COL32(200, 200, 200, 40));
+        for (float y = 0.0f; y < canvas_size.y; y += GRID_STEP)
+            draw_api->AddLine(ImVec2(canvas_topleft.x, canvas_topleft.y + y), ImVec2(canvas_buttomright.x, canvas_topleft.y + y), IM_COL32(200, 200, 200, 40));
+
+        ImGuiIO& io = ImGui::GetIO();
+        ImGui::InvisibleButton("canvas", canvas_size, ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
+        const bool is_hovered = ImGui::IsItemHovered();
+        const bool is_active = ImGui::IsItemActive();
+        const glm::vec2 mouse_pos(io.MousePos.x - canvas_topleft.x, io.MousePos.y - canvas_topleft.y);
+
+        if (is_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        {
+            points.push_back(mouse_pos);
+            sort(points.begin(), points.end(), comparePoint);
+
+            switch(color)
+            {
+                case 0: points_red.push_back(mouse_pos);
+                        sort(points_red.begin(), points_red.end(), comparePoint);
+                        break;
+                case 1: points_green.push_back(mouse_pos);
+                        sort(points_green.begin(), points_green.end(), comparePoint);
+                        break;
+                case 2: points_blue.push_back(mouse_pos);
+                        sort(points_blue.begin(), points_blue.end(), comparePoint);
+                        break;
+                case 3: points_alpha.push_back(mouse_pos);
+                        sort(points_alpha.begin(), points_alpha.end(), comparePoint);
+                        break;
+            }
+        }
+
+        auto point_iter = getIntersectedPoint(points, mouse_pos);
+
+        if(is_active && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.0f) && point_iter != points.end())
+        {
+            // auto iter
+        }
+
+        drawLine(draw_api, points_red, glm::vec2(canvas_topleft.x, canvas_topleft.y), RED);
+        drawLine(draw_api, points_green, glm::vec2(canvas_topleft.x, canvas_topleft.y), GREEN);
+        drawLine(draw_api, points_blue, glm::vec2(canvas_topleft.x, canvas_topleft.y), BLUE);
+        drawLine(draw_api, points_alpha, glm::vec2(canvas_topleft.x, canvas_topleft.y), ALPHA);
+
+        drawPoints(draw_api, points_red, glm::vec2(canvas_topleft.x, canvas_topleft.y), RED, mouse_pos);
+        drawPoints(draw_api, points_green, glm::vec2(canvas_topleft.x, canvas_topleft.y), GREEN, mouse_pos);
+        drawPoints(draw_api, points_blue, glm::vec2(canvas_topleft.x, canvas_topleft.y), BLUE, mouse_pos);
+        drawPoints(draw_api, points_alpha, glm::vec2(canvas_topleft.x, canvas_topleft.y), ALPHA, mouse_pos);
+
+        if(point_iter != points.end())
+            draw_api->AddCircle(ImVec2(canvas_topleft.x + point_iter->x, canvas_topleft.y + point_iter->y), 5.0f, IM_COL32(255, 255, 255, 255), 12, 2.0f);
+
+    }ImGui::End();
+}
+
+vector<glm::vec2>::iterator WindowManager::getIntersectedPoint(vector<glm::vec2>& points, glm::vec2 mouse_pos)
+{
+    auto iter = points.end();
+
+    while(iter != points.begin())
+    {
+        iter--;
+
+        if(glm::distance(mouse_pos, *iter) < 5.0f)
+            return iter;
     }
 
-    ImGui::Render();
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    return points.end();
+}
+
+void WindowManager::drawPoints(ImDrawList* draw_api, vector<glm::vec2> points, glm::vec2 origin, ImU32 color, glm::vec2 mouse_pos)
+{
+    for(auto point: points)
+    {
+        draw_api->AddCircleFilled(ImVec2(origin.x + point.x, origin.y + point.y), 5.0f, color, 12);
+        draw_api->AddCircle(ImVec2(origin.x + point.x, origin.y + point.y), 5.0f, IM_COL32(255, 255, 255, 255), 12, 0.2f);
+    }
+}
+
+void WindowManager::drawLine(ImDrawList* draw_api, vector<glm::vec2> points, glm::vec2 origin, ImU32 color)
+{
+    for(int i = 1; i < (int)points.size(); i++)
+    {
+        draw_api->AddLine(ImVec2(origin.x + points[i-1].x, origin.y + points[i-1].y), 
+                          ImVec2(origin.x + points[i].x, origin.y + points[i].y), color, 2.5f);
+    }
 }
 
 void WindowManager::initCallbacks()

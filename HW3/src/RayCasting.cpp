@@ -119,6 +119,9 @@ void RayCasting::draw(glm::mat4 projection, glm::mat4 view, const vector<float> 
     model = glm::scale(model, glm::vec3(data->voxelSize.x, data->voxelSize.y, data->voxelSize.z));
     shader->setMatrix4("model", glm::value_ptr(model));
 
+    shader->setFloatVec("resolution", {data->resolution.x, data->resolution.y, data->resolution.z}, 3);
+    shader->setFloatVec("voxelSize", {data->voxelSize.x, data->voxelSize.y, data->voxelSize.z}, 3);
+
     shader->setInt("tex3D", 0);
     shader->setInt("tex1D", 1);
 
