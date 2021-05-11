@@ -51,6 +51,9 @@ public:
     void makeMainMenu(bool&, float&);
     void makeGraph(float&);
     void makeCanvas();
+    void setLt(float&, float);
+    void setGt(float&, float);
+    vector<pair<glm::vec2, int>>::iterator getIntersectedPoint(vector<pair<glm::vec2, int>>&, glm::vec2);
     vector<glm::vec2>::iterator getIntersectedPoint(vector<glm::vec2>&, glm::vec2);
     void drawPoints(ImDrawList*, vector<glm::vec2>, glm::vec2, ImU32, glm::vec2);
     void drawLine(ImDrawList*, vector<glm::vec2>, glm::vec2, ImU32);

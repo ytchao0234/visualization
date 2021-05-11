@@ -346,7 +346,8 @@ void WindowManager::makeCanvas()
 {
     ImGui::Begin("Transfer Function");
     {
-        static vector<glm::vec2> points, points_red, points_green, points_blue, points_alpha;
+        static vector<pair<glm::vec2, int>> points;
+        static vector<glm::vec2> points_red, points_green, points_blue, points_alpha;
         static ImU32 RED  = IM_COL32(255, 0, 0, 255), GREEN = IM_COL32(0, 255, 0, 255),
                      BLUE = IM_COL32(0, 0, 255, 255), ALPHA = IM_COL32(180, 180, 180, 255);
         static bool toAddLine = false;
@@ -383,15 +384,15 @@ void WindowManager::makeCanvas()
             draw_api->AddLine(ImVec2(canvas_topleft.x, canvas_topleft.y + y), ImVec2(canvas_buttomright.x, canvas_topleft.y + y), IM_COL32(200, 200, 200, 40));
 
         ImGuiIO& io = ImGui::GetIO();
-        ImGui::InvisibleButton("canvas", canvas_size, ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
+        ImGui::InvisibleButton("canvas", canvas_size, ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight | ImGuiButtonFlags_MouseButtonMiddle);
         const bool is_hovered = ImGui::IsItemHovered();
         const bool is_active = ImGui::IsItemActive();
         const glm::vec2 mouse_pos(io.MousePos.x - canvas_topleft.x, io.MousePos.y - canvas_topleft.y);
 
-        if (is_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        if(is_hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
         {
-            points.push_back(mouse_pos);
-            sort(points.begin(), points.end(), comparePoint);
+            points.push_back({ mouse_pos, color });
+            sort(points_red.begin(), points_red.end(), comparePoint);
 
             switch(color)
             {
@@ -412,10 +413,92 @@ void WindowManager::makeCanvas()
 
         auto point_iter = getIntersectedPoint(points, mouse_pos);
 
-        if(is_active && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.0f) && point_iter != points.end())
+        if(is_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Middle) && point_iter != points.end())
         {
-            // auto iter
+            points.erase(point_iter);
+
+            vector<glm::vec2>::iterator iter;
+            color = point_iter->second;
+
+            switch(color)
+            {
+                case 0: iter = getIntersectedPoint(points_red, mouse_pos);
+                        points_red.erase(iter);
+                        break;
+                case 1: iter = getIntersectedPoint(points_green, mouse_pos);
+                        points_green.erase(iter);
+                        break;
+                case 2: iter = getIntersectedPoint(points_blue, mouse_pos);
+                        points_blue.erase(iter);
+                        break;
+                case 3: iter = getIntersectedPoint(points_alpha, mouse_pos);
+                        points_alpha.erase(iter);
+                        break;
+            }
         }
+
+        static vector<pair<glm::vec2, int>>::iterator draggingPoint_all;
+        static vector<glm::vec2>::iterator draggingPoint, begin, end;
+        static bool isDragging = false;
+
+        if(!isDragging && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.0f) && point_iter != points.end())
+        {
+            draggingPoint_all = point_iter;
+            isDragging = true;
+
+            switch(color)
+            {
+                case 0: draggingPoint = getIntersectedPoint(points_red, mouse_pos);
+                        begin = points_red.begin();
+                        end = points_red.end();
+                        break;
+                case 1: draggingPoint = getIntersectedPoint(points_green, mouse_pos);
+                        begin = points_green.begin();
+                        end = points_green.end();
+                        break;
+                case 2: draggingPoint = getIntersectedPoint(points_blue, mouse_pos);
+                        begin = points_blue.begin();
+                        end = points_blue.end();
+                        break;
+                case 3: draggingPoint = getIntersectedPoint(points_alpha, mouse_pos);
+                        begin = points_alpha.begin();
+                        end = points_alpha.end();
+                        break;
+            }
+        }
+
+        if(isDragging)
+        {
+            float x = mouse_pos.x, y = mouse_pos.y;
+
+            setLt(x, 0.0f); setGt(x, canvas_size.x);
+            setLt(y, 0.0f); setGt(y, canvas_size.y);
+
+            if((draggingPoint == begin || mouse_pos.x - prev(draggingPoint)->x > 0.1f) &&
+              (next(draggingPoint) == end || next(draggingPoint)->x - mouse_pos.x > 0.1f))
+            {
+                draggingPoint_all->first.x = x;
+                draggingPoint_all->first.y = y;
+                draggingPoint->x = x;
+                draggingPoint->y = y;
+            }
+            else if(mouse_pos.x - prev(draggingPoint)->x < 0.1f)
+            {
+                draggingPoint_all->first.x = prev(draggingPoint)->x;
+                draggingPoint_all->first.y = y;
+                draggingPoint->x = prev(draggingPoint)->x;
+                draggingPoint->y = y;
+            }
+            else if(next(draggingPoint)->x - mouse_pos.x < 0.1f)
+            {
+                draggingPoint_all->first.x = next(draggingPoint)->x;
+                draggingPoint_all->first.y = y;
+                draggingPoint->x = next(draggingPoint)->x;
+                draggingPoint->y = y;
+            }
+        }
+
+        if(ImGui::IsMouseReleased(ImGuiMouseButton_Left)) isDragging = false;
 
         drawLine(draw_api, points_red, glm::vec2(canvas_topleft.x, canvas_topleft.y), RED);
         drawLine(draw_api, points_green, glm::vec2(canvas_topleft.x, canvas_topleft.y), GREEN);
@@ -428,9 +511,34 @@ void WindowManager::makeCanvas()
         drawPoints(draw_api, points_alpha, glm::vec2(canvas_topleft.x, canvas_topleft.y), ALPHA, mouse_pos);
 
         if(point_iter != points.end())
-            draw_api->AddCircle(ImVec2(canvas_topleft.x + point_iter->x, canvas_topleft.y + point_iter->y), 5.0f, IM_COL32(255, 255, 255, 255), 12, 2.0f);
+            draw_api->AddCircle(ImVec2(canvas_topleft.x + point_iter->first.x, canvas_topleft.y + point_iter->first.y), 5.0f, IM_COL32(255, 255, 255, 255), 12, 2.0f);
 
     }ImGui::End();
+}
+
+void WindowManager::setLt(float& theElement, float thatElement)
+{
+    if(theElement < thatElement) theElement = thatElement;
+}
+
+void WindowManager::setGt(float& theElement, float thatElement)
+{
+    if(theElement > thatElement) theElement = thatElement;
+}
+
+vector<pair<glm::vec2, int>>::iterator WindowManager::getIntersectedPoint(vector<pair<glm::vec2, int>>& points, glm::vec2 mouse_pos)
+{
+    auto iter = points.end();
+
+    while(iter != points.begin())
+    {
+        iter--;
+
+        if(glm::distance(mouse_pos, iter->first) < 5.0f)
+            return iter;
+    }
+
+    return points.end();
 }
 
 vector<glm::vec2>::iterator WindowManager::getIntersectedPoint(vector<glm::vec2>& points, glm::vec2 mouse_pos)
