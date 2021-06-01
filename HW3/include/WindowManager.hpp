@@ -32,6 +32,9 @@ private:
     bool leftButtonIsPressing;
     vector<float> clipping;
     bool makeCrossSection;
+    float gap;
+    float adjust;
+    float threshold;
     GLFWwindow* window;
     Camera *camera;
     Light *light;
@@ -41,6 +44,7 @@ private:
     Heatmap* heatmap;
     vector<Method *> volumeList;
     vector<string> methods;
+    vector<string> importList;
 
 public:
     WindowManager(string, int, int, string);
@@ -48,9 +52,9 @@ public:
 
     void initGUI();
     void renderGUI();
-    void makeMainMenu(bool&, float&);
+    void makeMainMenu(bool&, bool&, string&, float&);
     void makeGraph(float&);
-    void makeCanvas();
+    void makeCanvas(string);
     void setLt(float&, float);
     void setGt(float&, float);
     vector<pair<glm::vec2, int>>::iterator getIntersectedPoint(vector<pair<glm::vec2, int>>&, glm::vec2);
@@ -60,6 +64,7 @@ public:
 
     void initCallbacks();
     void initObjects();
+    void initImportList();
 
     void resizeCallback(GLFWwindow*, int, int);
     void keyCallback(GLFWwindow*, int, int, int, int);
@@ -75,6 +80,9 @@ public:
     int getHeight() { return height; }
     vector<float> getClipping() { return clipping; }
     bool getMakeCrossSection() { return makeCrossSection; }
+    float getGap() { return gap; }
+    float getAdjust() { return adjust; }
+    float getThreshold() { return threshold; }
     GLFWwindow* getWindow() { return window; }
     Camera* getCamera() { return camera; }
     Light * getLight() { return light; }

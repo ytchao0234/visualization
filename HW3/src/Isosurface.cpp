@@ -43,7 +43,7 @@ void Isosurface::bindVertices()
     glEnableVertexAttribArray(1);
 }
 
-void Isosurface::draw(glm::mat4 projection, glm::mat4 view, const vector<float> clipping, bool makeCrossSection)
+void Isosurface::draw(glm::mat4 projection, glm::mat4 view, const vector<float> clipping, bool makeCrossSection, float gap, float adjust, float threshold)
 {
     shader->use();
 
@@ -131,9 +131,9 @@ void Isosurface::setVertices(vector<int> baseVertex, vector<int> interEdges)
         direction = glm::vec3( x1-x0, y1-y0, z1-z0 );
         ratio = (isovalue - data->data[x0][y0][z0]) / (data->data[x1][y1][z1] - data->data[x0][y0][z0]);
 
-        vertices.push_back(base.x + ratio * direction.x - int(data->resolution.x / 2));
-        vertices.push_back(base.y + ratio * direction.y - int(data->resolution.y / 2));
-        vertices.push_back(base.z + ratio * direction.z - int(data->resolution.z / 2));
+        vertices.push_back(base.x + ratio * direction.x - data->resolution.x / 2.0f);
+        vertices.push_back(base.y + ratio * direction.y - data->resolution.y / 2.0f);
+        vertices.push_back(base.z + ratio * direction.z - data->resolution.z / 2.0f);
 
         glm::vec3 grad = glm::vec3(data->gradient[x0][y0][z0][0] * (1.0f-ratio) +
                                    data->gradient[x1][y1][z1][0] * ratio,

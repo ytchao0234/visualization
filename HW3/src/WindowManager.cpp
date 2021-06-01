@@ -8,8 +8,12 @@ WindowManager::WindowManager(string title, int width, int height, string glslVer
     this->leftButtonIsPressing = false;
     this->clipping = { 1.0f, 1.0f, 1.0f, 500.0f };
     this->makeCrossSection = false;
+    this->gap = 2.0f;
+    this->adjust = 1.0f;
+    this->threshold = 0.8f;
     this->glslVersion = glslVersion;
     this->methods = {"Isosurface", "Ray Casting", "Slicing"};
+    this->importList.clear();
 
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -60,13 +64,16 @@ void WindowManager::renderGUI()
     ImGui::NewFrame();
 
     // ImPlot::ShowDemoWindow();
+    // ImGui::ShowDemoWindow();
 
+    static string selectedMethod = methods[0];
     static bool toRenderGraph = false;
+    static bool toRenderCanvas = false;
     static float gMaxLimit = fr->getVolumeData()->gradMax;
 
     ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_Once);
     ImGui::SetNextWindowSize(ImVec2(300, 420), ImGuiCond_Once);
-    makeMainMenu(toRenderGraph, gMaxLimit);
+    makeMainMenu(toRenderGraph, toRenderCanvas, selectedMethod, gMaxLimit);
 
     if(toRenderGraph)
     {
@@ -75,23 +82,28 @@ void WindowManager::renderGUI()
         makeGraph(gMaxLimit);
     }
 
-    ImGui::SetNextWindowPos(ImVec2(width - 360 - 10, height - 460 - 10), ImGuiCond_Once);
-    ImGui::SetNextWindowSize(ImVec2(360, 420), ImGuiCond_Once);
-    makeCanvas();
+    if(toRenderCanvas)
+    {
+        ImGui::SetNextWindowPos(ImVec2(width - 360 - 10, height - 490 - 10), ImGuiCond_Once);
+        ImGui::SetNextWindowSize(ImVec2(360, 490), ImGuiCond_Once);
+        makeCanvas(selectedMethod);
+    }
     
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-void WindowManager::makeMainMenu(bool& toRenderGraph, float& gMaxLimit)
+void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, string& selectedMethod, float& gMaxLimit)
 {
     ImGui::Begin("Main Menu");
     {
         ImGui::Text("%.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        ImGui::Checkbox("Graph", &toRenderGraph); ImGui::SameLine();
+        ImGui::Checkbox("Canvas", &toRenderCanvas);
+
         ImGui::NewLine();
 
         ImGui::Text("Method: ");
-        static string selectedMethod = methods[0];
 
         if (ImGui::BeginCombo("method", selectedMethod.c_str()))
         {
@@ -211,23 +223,33 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, float& gMaxLimit)
             }
         }
 
-        ImGui::Checkbox("Render Graph", &toRenderGraph);
-
         ImGui::NewLine();
-        ImGui::Text("Clipping Plane: ");
 
-        if(ImGui::SliderFloat("x", &clipping[0], -1.0f, 1.0f)|
-           ImGui::SliderFloat("y", &clipping[1], -1.0f, 1.0f)|
-           ImGui::SliderFloat("z", &clipping[2], -1.0f, 1.0f))
+        if(selectedMethod == "Isosurface")
         {
-            glm::vec3 temp = glm::vec3(clipping[0], clipping[1], clipping[2]);
-            temp = glm::normalize(temp);
+            ImGui::Text("Clipping Plane: ");
 
-            clipping[0] = temp.x; clipping[1] = temp.y; clipping[2] = temp.z;
+            if(ImGui::SliderFloat("x", &clipping[0], -1.0f, 1.0f)|
+            ImGui::SliderFloat("y", &clipping[1], -1.0f, 1.0f)|
+            ImGui::SliderFloat("z", &clipping[2], -1.0f, 1.0f))
+            {
+                glm::vec3 temp = glm::vec3(clipping[0], clipping[1], clipping[2]);
+                temp = glm::normalize(temp);
+
+                clipping[0] = temp.x; clipping[1] = temp.y; clipping[2] = temp.z;
+            }
+
+            ImGui::SliderFloat("offset", &clipping[3], -500.0f, 500.0f);
+            ImGui::Checkbox("make cross-section", &makeCrossSection);
         }
+        else if(selectedMethod == "Ray Casting")
+        {
+            ImGui::Text("Parameters: ");
 
-        ImGui::SliderFloat("offset", &clipping[3], -500.0f, 500.0f);
-        ImGui::Checkbox("make cross-section", &makeCrossSection);
+            if(ImGui::SliderFloat("step", &gap, 0.1f, 10.0f));
+            if(ImGui::SliderFloat("adjust", &adjust, 0.01f, 1.0f));
+            if(ImGui::SliderFloat("threshold", &threshold, 0.1f, 1.0f));
+        }
     } ImGui::End();
 }
 
@@ -342,15 +364,170 @@ bool comparePoint(glm::vec2 a, glm::vec2 b)
     return a.x < b.x;
 }
 
-void WindowManager::makeCanvas()
+bool comparePoint_all(pair<glm::vec2, int> a, pair<glm::vec2, int> b)
+{
+    return a.first.x < b.first.x;
+}
+
+void WindowManager::makeCanvas(string selectedMethod)
 {
     ImGui::Begin("Transfer Function");
     {
+        static bool startUpdating = false;
+        static bool isUpdating = false;
+
         static vector<pair<glm::vec2, int>> points;
         static vector<glm::vec2> points_red, points_green, points_blue, points_alpha;
         static ImU32 RED  = IM_COL32(255, 0, 0, 255), GREEN = IM_COL32(0, 255, 0, 255),
                      BLUE = IM_COL32(0, 0, 255, 255), ALPHA = IM_COL32(180, 180, 180, 255);
         static bool toAddLine = false;
+
+        static string importTrans;
+        static char exportTrans[128];
+        
+        if(ImGui::BeginCombo(" ##1", importTrans.c_str()))
+        {
+            for (int i = 0; i < (int)importList.size(); i++)
+            {
+                if(ImGui::Selectable(importList[i].c_str()))
+                {
+                    importTrans = importList[i];
+                }
+                if(importTrans == importList[i])
+                {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+        ImGui::SameLine();
+
+        if(ImGui::Button("Import") && importTrans.length() > 0)
+        {
+            string filename = "./transferFunc/";
+            filename += importTrans + ".trans";
+
+            ifstream fs;
+            fs.open(filename.c_str(), ios::in | ios::binary );
+
+            if (!fs.is_open())
+            {
+                cout << "ERROR::FILEREADER::OPENFILE::" << filename.c_str() << "_FAILED"<< endl;
+                exit(1);
+            }
+
+            string line;
+            stringstream ss;
+            int x, y, color;
+
+            getline(fs, line);
+            ss.clear();
+            ss << line;
+
+            points.clear();
+            while(true)
+            {
+                ss >> x; ss >> y; ss >> color;
+                if(ss.fail()) break;
+                points.push_back({glm::vec2(x,y), color});
+            }
+
+            getline(fs, line);
+            ss.clear();
+            ss << line;
+
+            points_red.clear();
+            while(true)
+            {
+                ss >> x; ss >> y;
+                if(ss.fail()) break;
+                points_red.push_back(glm::vec2(x,y));
+            }
+
+            getline(fs, line);
+            ss.clear();
+            ss << line;
+
+            points_green.clear();
+            while(true)
+            {
+                ss >> x; ss >> y;
+                if(ss.fail()) break;
+                points_green.push_back(glm::vec2(x,y));
+            }
+
+            getline(fs, line);
+            ss.clear();
+            ss << line;
+
+            points_blue.clear();
+            while(true)
+            {
+                ss >> x; ss >> y;
+                if(ss.fail()) break;
+                points_blue.push_back(glm::vec2(x,y));
+            }
+
+            getline(fs, line);
+            ss.clear();
+            ss << line;
+
+            points_alpha.clear();
+            while(true)
+            {
+                ss >> x; ss >> y;
+                if(ss.fail()) break;
+                points_alpha.push_back(glm::vec2(x,y));
+            }
+
+            fs.close();
+        }
+
+        ImGui::InputText(" ##2", exportTrans, IM_ARRAYSIZE(exportTrans)); ImGui::SameLine();
+
+        istringstream ss(exportTrans);
+
+        if(ImGui::Button("Export") && ss.str().length() > 0)
+        {
+            string filename = "./transferFunc/";
+            filename += ss.str() + ".trans";
+
+            cout << ss.str() << endl;
+
+            ofstream fs;
+            fs.open(filename);
+
+            if (!fs.is_open())
+            {
+                cout << "ERROR::FILEREADER::OPENFILE::" << filename.c_str() << "_FAILED"<< endl;
+                exit(1);
+            }
+
+            for(auto point: points)
+                fs << " " << point.first.x << " " << point.first.y << " " << point.second;
+            fs << "\n";
+
+            for(auto point: points_red)
+                fs << " " << point.x << " " << point.y;
+            fs << "\n";
+
+            for(auto point: points_green)
+                fs << " " << point.x << " " << point.y;
+            fs << "\n";
+
+            for(auto point: points_blue)
+                fs << " " << point.x << " " << point.y;
+            fs << "\n";
+
+            for(auto point: points_alpha)
+                fs << " " << point.x << " " << point.y;
+            fs << "\n";
+
+            fs.close();
+
+            importList.push_back(ss.str());
+            exportTrans[0] = '\0';
+        }
 
         static int color = 0;
         ImGui::RadioButton("Red"  , &color, 0); ImGui::SameLine();
@@ -367,11 +544,28 @@ void WindowManager::makeCanvas()
             points_alpha.clear();
         }
 
+        if(!startUpdating)
+        {
+            if(ImGui::Button("Start Updating"))
+            {
+                isUpdating = true;
+                startUpdating = true;
+            }
+        }
+        else
+        {
+            if(ImGui::Button(" Stop Updating"))
+            {
+                isUpdating = false;
+                startUpdating = false;
+            }
+        }
+
         ImGui::NewLine();
 
-        static ImVec2 canvas_size = ImVec2(340.0f, 340.0f);
-        static ImVec2 canvas_topleft = ImGui::GetCursorScreenPos();
-        static ImVec2 canvas_buttomright = ImVec2(canvas_topleft.x + canvas_size.x, canvas_topleft.y + canvas_size.y);
+        ImVec2 canvas_size = ImVec2(340.0f, 340.0f);
+        ImVec2 canvas_topleft = ImGui::GetCursorScreenPos();
+        ImVec2 canvas_buttomright = ImVec2(canvas_topleft.x + canvas_size.x, canvas_topleft.y + canvas_size.y);
 
         ImDrawList* draw_api = ImGui::GetWindowDrawList();
         draw_api->AddRectFilled(canvas_topleft, canvas_buttomright, IM_COL32(50, 50, 50, 255));
@@ -392,7 +586,7 @@ void WindowManager::makeCanvas()
         if(is_hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
         {
             points.push_back({ mouse_pos, color });
-            sort(points_red.begin(), points_red.end(), comparePoint);
+            sort(points.begin(), points.end(), comparePoint_all);
 
             switch(color)
             {
@@ -411,29 +605,32 @@ void WindowManager::makeCanvas()
             }
         }
 
-        auto point_iter = getIntersectedPoint(points, mouse_pos);
-
-        if(is_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Middle) && point_iter != points.end())
+        if(is_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Middle))
         {
-            points.erase(point_iter);
+            auto point_iter = getIntersectedPoint(points, mouse_pos);
 
-            vector<glm::vec2>::iterator iter;
-            color = point_iter->second;
-
-            switch(color)
+            if(point_iter != points.end())
             {
-                case 0: iter = getIntersectedPoint(points_red, mouse_pos);
-                        points_red.erase(iter);
-                        break;
-                case 1: iter = getIntersectedPoint(points_green, mouse_pos);
-                        points_green.erase(iter);
-                        break;
-                case 2: iter = getIntersectedPoint(points_blue, mouse_pos);
-                        points_blue.erase(iter);
-                        break;
-                case 3: iter = getIntersectedPoint(points_alpha, mouse_pos);
-                        points_alpha.erase(iter);
-                        break;
+                vector<glm::vec2>::iterator iter;
+                color = point_iter->second;
+
+                switch(color)
+                {
+                    case 0: iter = getIntersectedPoint(points_red, mouse_pos);
+                            points_red.erase(iter);
+                            break;
+                    case 1: iter = getIntersectedPoint(points_green, mouse_pos);
+                            points_green.erase(iter);
+                            break;
+                    case 2: iter = getIntersectedPoint(points_blue, mouse_pos);
+                            points_blue.erase(iter);
+                            break;
+                    case 3: iter = getIntersectedPoint(points_alpha, mouse_pos);
+                            points_alpha.erase(iter);
+                            break;
+                }
+
+                points.erase(point_iter);
             }
         }
 
@@ -441,29 +638,35 @@ void WindowManager::makeCanvas()
         static vector<glm::vec2>::iterator draggingPoint, begin, end;
         static bool isDragging = false;
 
-        if(!isDragging && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.0f) && point_iter != points.end())
+        if(!isDragging && ImGui::IsMouseDragging(ImGuiMouseButton_Left, 0.0f))
         {
-            draggingPoint_all = point_iter;
-            isDragging = true;
+            auto point_iter = getIntersectedPoint(points, mouse_pos);
 
-            switch(color)
+            if(point_iter != points.end())
             {
-                case 0: draggingPoint = getIntersectedPoint(points_red, mouse_pos);
-                        begin = points_red.begin();
-                        end = points_red.end();
-                        break;
-                case 1: draggingPoint = getIntersectedPoint(points_green, mouse_pos);
-                        begin = points_green.begin();
-                        end = points_green.end();
-                        break;
-                case 2: draggingPoint = getIntersectedPoint(points_blue, mouse_pos);
-                        begin = points_blue.begin();
-                        end = points_blue.end();
-                        break;
-                case 3: draggingPoint = getIntersectedPoint(points_alpha, mouse_pos);
-                        begin = points_alpha.begin();
-                        end = points_alpha.end();
-                        break;
+                draggingPoint_all = point_iter;
+                isDragging = true;
+                color = point_iter->second;
+
+                switch(color)
+                {
+                    case 0: draggingPoint = getIntersectedPoint(points_red, mouse_pos);
+                            begin = points_red.begin();
+                            end = points_red.end();
+                            break;
+                    case 1: draggingPoint = getIntersectedPoint(points_green, mouse_pos);
+                            begin = points_green.begin();
+                            end = points_green.end();
+                            break;
+                    case 2: draggingPoint = getIntersectedPoint(points_blue, mouse_pos);
+                            begin = points_blue.begin();
+                            end = points_blue.end();
+                            break;
+                    case 3: draggingPoint = getIntersectedPoint(points_alpha, mouse_pos);
+                            begin = points_alpha.begin();
+                            end = points_alpha.end();
+                            break;
+                }
             }
         }
 
@@ -474,27 +677,20 @@ void WindowManager::makeCanvas()
             setLt(x, 0.0f); setGt(x, canvas_size.x);
             setLt(y, 0.0f); setGt(y, canvas_size.y);
 
-            if((draggingPoint == begin || mouse_pos.x - prev(draggingPoint)->x > 0.1f) &&
-              (next(draggingPoint) == end || next(draggingPoint)->x - mouse_pos.x > 0.1f))
+            if(draggingPoint != begin && mouse_pos.x - prev(draggingPoint)->x < 0.1f)
             {
-                draggingPoint_all->first.x = x;
-                draggingPoint_all->first.y = y;
-                draggingPoint->x = x;
-                draggingPoint->y = y;
+                draggingPoint_all->first.x = draggingPoint->x = prev(draggingPoint)->x + 1;
+                draggingPoint_all->first.y = draggingPoint->y = y;
             }
-            else if(mouse_pos.x - prev(draggingPoint)->x < 0.1f)
+            else if(next(draggingPoint) != end && next(draggingPoint)->x - mouse_pos.x < 0.1f)
             {
-                draggingPoint_all->first.x = prev(draggingPoint)->x;
-                draggingPoint_all->first.y = y;
-                draggingPoint->x = prev(draggingPoint)->x;
-                draggingPoint->y = y;
+                draggingPoint_all->first.x = draggingPoint->x = next(draggingPoint)->x - 1;
+                draggingPoint_all->first.y = draggingPoint->y = y;
             }
-            else if(next(draggingPoint)->x - mouse_pos.x < 0.1f)
+            else
             {
-                draggingPoint_all->first.x = next(draggingPoint)->x;
-                draggingPoint_all->first.y = y;
-                draggingPoint->x = next(draggingPoint)->x;
-                draggingPoint->y = y;
+                draggingPoint_all->first.x = draggingPoint->x = x;
+                draggingPoint_all->first.y = draggingPoint->y = y;
             }
         }
 
@@ -510,8 +706,15 @@ void WindowManager::makeCanvas()
         drawPoints(draw_api, points_blue, glm::vec2(canvas_topleft.x, canvas_topleft.y), BLUE, mouse_pos);
         drawPoints(draw_api, points_alpha, glm::vec2(canvas_topleft.x, canvas_topleft.y), ALPHA, mouse_pos);
 
+        auto point_iter = getIntersectedPoint(points, mouse_pos);
+
         if(point_iter != points.end())
             draw_api->AddCircle(ImVec2(canvas_topleft.x + point_iter->first.x, canvas_topleft.y + point_iter->first.y), 5.0f, IM_COL32(255, 255, 255, 255), 12, 2.0f);
+
+        if(isUpdating && volumeList.size() > 0 && selectedMethod == "Ray Casting")
+        {
+            dynamic_cast<RayCasting*>(volumeList.back())->make1DTexture(glm::vec2(canvas_size.x, canvas_size.y), points_red, points_green, points_blue, points_alpha);
+        }
 
     }ImGui::End();
 }
@@ -616,6 +819,37 @@ void WindowManager::initObjects()
 
     histogram = NULL;
     heatmap = NULL;
+
+    initImportList();
+}
+
+void WindowManager::initImportList()
+{
+    DIR * dirp;
+    struct dirent * entry;
+
+    dirp = opendir("./transferFunc/");
+
+    if (dirp == NULL) 
+    {
+        cout << "Error(" << errno << ") opening " << "./transferFunc/" << endl;
+        perror("opendir");
+
+        return;
+    }
+
+    importList.clear();
+    string fullname = "";
+
+    while ((entry = readdir(dirp)) != NULL) {
+        if(strstr(entry->d_name, ".trans"))
+        {
+            fullname = entry->d_name;
+            importList.push_back(fullname.substr(0, fullname.length() - 6));
+        }
+    }
+
+    closedir(dirp);
 }
 
 void WindowManager::resizeCallback(GLFWwindow* window, int width, int height)

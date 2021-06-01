@@ -29,9 +29,9 @@ RayCasting::~RayCasting()
 
 void RayCasting::makeVertices()
 {
-    float x = (float)data->resolution.x;
-    float y = (float)data->resolution.y;
-    float z = (float)data->resolution.z;
+    float x = data->resolution.x;
+    float y = data->resolution.y;
+    float z = data->resolution.z;
 
     // 0: 0.0f, 0.0f, 0.0f,     0.0f, 0.0f, 0.0f,
     // 1:    x, 0.0f, 0.0f,     1.0f, 0.0f, 0.0f,
@@ -108,7 +108,7 @@ void RayCasting::bindVertices()
     glEnableVertexAttribArray(1);
 }
 
-void RayCasting::draw(glm::mat4 projection, glm::mat4 view, const vector<float> clipping, bool makeCrossSection)
+void RayCasting::draw(glm::mat4 projection, glm::mat4 view, const vector<float> clipping, bool makeCrossSection, float gap, float adjust, float threshold)
 {
     shader->use();
 
@@ -119,8 +119,12 @@ void RayCasting::draw(glm::mat4 projection, glm::mat4 view, const vector<float> 
     model = glm::scale(model, glm::vec3(data->voxelSize.x, data->voxelSize.y, data->voxelSize.z));
     shader->setMatrix4("model", glm::value_ptr(model));
 
-    shader->setFloatVec("resolution", {data->resolution.x, data->resolution.y, data->resolution.z}, 3);
+    shader->setFloatVec("resolution", {(float)data->resolution.x, (float)data->resolution.y, (float)data->resolution.z}, 3);
     shader->setFloatVec("voxelSize", {data->voxelSize.x, data->voxelSize.y, data->voxelSize.z}, 3);
+
+    shader->setFloat("gap", gap);
+    shader->setFloat("adjust", adjust);
+    shader->setFloat("threshold", threshold);
 
     shader->setInt("tex3D", 0);
     shader->setInt("tex1D", 1);
@@ -174,4 +178,56 @@ void RayCasting::make1DTexture()
     }
 
     texture->make1DTexture(1, texture1D, 256);
+}
+
+void RayCasting::make1DTexture(glm::vec2 canvas_size, vector<glm::vec2> red, vector<glm::vec2> green, vector<glm::vec2> blue, vector<glm::vec2> alpha)
+{
+    glm::vec2 ratio = glm::vec2(1.0f / canvas_size.x * 255.0f, 1.0f / canvas_size.y * 255.0f);
+
+    for(int i = 0; i < 256; i++)
+    {
+        texture1D[i][0] = 0;
+        texture1D[i][1] = 0;
+        texture1D[i][2] = 0;
+        texture1D[i][3] = 0;
+    }
+
+    setColorValue(ratio, red  , 0);
+    setColorValue(ratio, green, 1);
+    setColorValue(ratio, blue , 2);
+    setColorValue(ratio, alpha, 3);
+
+    texture->make1DTexture(1, texture1D, 256);
+}
+
+void RayCasting::setColorValue(glm::vec2 ratio, vector<glm::vec2> points, int color)
+{
+    if(points.size() == 0) return;
+
+    vector<glm::vec2>::iterator iter = points.begin(), next_iter = next(iter);
+    vector<glm::vec2>::reverse_iterator end_iter = points.rbegin();
+
+    int start_x = iter->x * ratio.x, end_x = end_iter->x * ratio.x;
+    float alpha_x, base_y, y;
+    int i;
+
+    texture1D[start_x][color] = iter->y * ratio.y;
+
+    for(i = start_x + 1; i <= end_x; i++)
+    {
+        if(i == (int)(next_iter->x * ratio.x))
+        {
+            iter++;
+            next_iter++;
+            texture1D[i][color] = iter->y * ratio.y;
+        }
+        else
+        {
+            base_y = iter->y * ratio.y;
+            y = (next_iter->y - iter->y) * ratio.y;
+            alpha_x = (i - iter->x) / (next_iter->x - iter->x);
+
+            texture1D[i][color] = 255 - (base_y + y * alpha_x);
+        }
+    }
 }

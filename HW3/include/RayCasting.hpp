@@ -19,7 +19,7 @@ private:
 public:
     void makeVertices();
     void bindVertices();
-    void draw(glm::mat4, glm::mat4, const vector<float>, bool);
+    void draw(glm::mat4, glm::mat4, const vector<float>, bool, float, float, float);
     void setShader();
     Shader* getShader() const;
 
@@ -28,4 +28,6 @@ public:
 
     void make3DTexture();
     void make1DTexture();
+    void make1DTexture(glm::vec2, vector<glm::vec2>, vector<glm::vec2>, vector<glm::vec2>, vector<glm::vec2>);
+    void setColorValue(glm::vec2, vector<glm::vec2>, int);
 };

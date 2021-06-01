@@ -7,6 +7,9 @@ out vec4 FragColor;
 
 uniform vec3 resolution;
 uniform vec3 voxelSize;
+uniform float gap;
+uniform float adjust;
+uniform float threshold;
 uniform sampler3D tex3D;
 uniform sampler1D tex1D;
 
@@ -37,19 +40,14 @@ void main()
 
     vec4 color = vec4(0.0f, 0.0f, 0.0f, 0.0f);
     float T = 0.0f;
-    float threshold = 0.8f;
-    float gap = 5.0f;
 
     while(T < threshold && inside(current_texCoord))
     {
         vec4 tex3 = texture3D(tex3D, current_texCoord);
         vec4 tex1 = texture1D(tex1D, tex3.a);
 
-        if(tex3.a > 70.0/255.0 && tex3.a < 200.0/255.0)
-        {
-            color = color + tex1 * (1-T);
-            T = T + (1-T) * tex1.a;
-        }
+        T = T + tex1.a * (1-T);
+        color = color + (vec4(tex1.rgb * tex1.a, tex1.a) * adjust);
 
         current_pos += gap * direction;
         vec3 temp = vec3(current_pos.x + resolution.x/2.0, current_pos.y + resolution.y/2.0, current_pos.z + resolution.z/2.0);
