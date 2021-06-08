@@ -47,7 +47,7 @@ void main()
         vec4 tex1 = texture1D(tex1D, tex3.a);
 
         T = T + tex1.a * (1-T);
-        color = color + (vec4(tex1.rgb * tex1.a, tex1.a) * adjust);
+        color = color + (vec4(tex1.rgb * tex1.a * adjust, tex1.a));
 
         current_pos += gap * direction;
         vec3 temp = vec3(current_pos.x + resolution.x/2.0, current_pos.y + resolution.y/2.0, current_pos.z + resolution.z/2.0);

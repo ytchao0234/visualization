@@ -196,7 +196,7 @@ void RayCasting::make1DTexture(glm::vec2 canvas_size, vector<glm::vec2> red, vec
     setColorValue(ratio, green, 1);
     setColorValue(ratio, blue , 2);
     setColorValue(ratio, alpha, 3);
-
+    
     texture->make1DTexture(1, texture1D, 256);
 }
 
@@ -207,27 +207,27 @@ void RayCasting::setColorValue(glm::vec2 ratio, vector<glm::vec2> points, int co
     vector<glm::vec2>::iterator iter = points.begin(), next_iter = next(iter);
     vector<glm::vec2>::reverse_iterator end_iter = points.rbegin();
 
-    int start_x = iter->x * ratio.x, end_x = end_iter->x * ratio.x;
+    int start_x = iter->x, end_x = end_iter->x;
     float alpha_x, base_y, y;
     int i;
 
-    texture1D[start_x][color] = iter->y * ratio.y;
+    texture1D[start_x][color] = 255 - iter->y * ratio.y;
 
     for(i = start_x + 1; i <= end_x; i++)
     {
-        if(i == (int)(next_iter->x * ratio.x))
+        if(i == (int)(next_iter->x))
         {
             iter++;
             next_iter++;
-            texture1D[i][color] = iter->y * ratio.y;
+            texture1D[i][color] = 255 - iter->y * ratio.y;
         }
         else
         {
-            base_y = iter->y * ratio.y;
-            y = (next_iter->y - iter->y) * ratio.y;
+            base_y = iter->y;
+            y = (next_iter->y - iter->y);
             alpha_x = (i - iter->x) / (next_iter->x - iter->x);
 
-            texture1D[i][color] = 255 - (base_y + y * alpha_x);
+            texture1D[i][color] = 255 - (base_y + y * alpha_x) * ratio.y;
         }
     }
 }
