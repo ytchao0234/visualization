@@ -1,19 +1,23 @@
 #include <FileReader.hpp>
+#include <FileReader.hpp>
 
 FileReader::FileReader(string rootPath)
 {
     this->rootPath = rootPath;
     infNameList.clear();
     rawNameList.clear();
+    vecNameList.clear();
     info = new FileInfo();
-    data = new VolumeData();
+    data1 = new VolumeData();
+    data2 = new VectorData();
     endian = isBigEndian() ? "big" : "little";
 }
 
 FileReader::~FileReader()
 {
     delete info;
-    delete data;
+    delete data1;
+    delete data2;
 }
 
 bool FileReader::isBigEndian()
@@ -42,7 +46,7 @@ void FileReader::initNameList()
 
     string fullname = "";
 
-    dirp = opendir(rootPath.c_str());
+    dirp = opendir((rootPath + "Volume/").c_str());
 
     if (dirp == NULL) 
     {
@@ -66,6 +70,67 @@ void FileReader::initNameList()
     }
 
     closedir(dirp);
+
+    dirp = opendir((rootPath + "Vector/").c_str());
+
+    if (dirp == NULL) 
+    {
+        cout << "Error(" << errno << ") opening " << rootPath.c_str() << endl;
+        perror("opendir");
+
+        return;
+    }
+
+    while ((entry = readdir(dirp)) != NULL) {
+        if(strstr(entry->d_name, ".vec") != NULL)
+        {
+            fullname = entry->d_name;
+            vecNameList.push_back(fullname.substr(0, fullname.length() - 4));
+        }
+    }
+
+    closedir(dirp);
+}
+
+void FileReader::readFile(string filename)
+{
+    filename = rootPath + "Vector/" + filename;
+    filename += ".vec";
+
+    ifstream fs;
+    fs.open(filename.c_str(), ios::in | ios::binary );
+
+    if (!fs.is_open())
+    {
+        cout << "ERROR::FILEREADER::OPENFILE::" << filename.c_str() << "_FAILED"<< endl;
+        exit(1);
+    }
+
+    string content;
+    getline(fs, content);
+    fs.close();
+
+    istringstream ss(content);
+    double value1, value2;
+    int i = 0;
+
+    this->data2->value.clear();
+    while(true)
+    {
+        ss >> value1;
+        ss >> value2;
+
+        if(ss.fail()) break;
+
+        if(i == 0)
+            this->data2->size = {value1, value2};
+        else
+            this->data2->value.push_back({value1, value2});
+
+        i++;
+    }
+
+    data2->print();
 }
 
 void FileReader::readFile(string infFile, string rawFile)
@@ -78,7 +143,7 @@ void FileReader::readInf(string filename)
 {
     info->init();
 
-    filename = rootPath + filename;
+    filename = rootPath + "Volume/" + filename;
     filename += ".inf";
 
     ifstream fs;
@@ -104,7 +169,7 @@ void FileReader::readInf(string filename)
         if(regex_search(line, matches, reg_resolution))
         {
             info->setResolution({stoi(matches[3]), stoi(matches[2]), stoi(matches[1])});
-            data->setResolution(stoi(matches[3]), stoi(matches[2]), stoi(matches[1]));
+            data1->setResolution(stoi(matches[3]), stoi(matches[2]), stoi(matches[1]));
         }
 
         else if(regex_search(line, matches, reg_valueType))
@@ -133,7 +198,7 @@ void FileReader::readInf(string filename)
         else if(regex_search(line, matches, reg_voxelSize))
         {
             info->setVoxelSize({stof(matches[4]), stof(matches[3]), stof(matches[2])});
-            data->setVoxelSize(stof(matches[4]), stof(matches[3]), stof(matches[2]));
+            data1->setVoxelSize(stof(matches[4]), stof(matches[3]), stof(matches[2]));
         }
 
         else if(regex_search(line, matches, reg_endian))
@@ -180,6 +245,11 @@ vector<string> FileReader::getRawNameList() const
     return rawNameList;
 }
 
+vector<string> FileReader::getVecNameList() const
+{
+    return vecNameList;
+}
+
 FileInfo* FileReader::getInfo() const
 {
     return info;
@@ -187,5 +257,10 @@ FileInfo* FileReader::getInfo() const
 
 VolumeData* FileReader::getVolumeData() const
 {
-    return data;
+    return data1;
+}
+
+VectorData* FileReader::getVectorData() const
+{
+    return data2;
 }

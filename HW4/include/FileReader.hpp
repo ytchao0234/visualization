@@ -9,6 +9,7 @@
 #include <glm/glm.hpp>
 #include <FileInfo.hpp>
 #include <VolumeData.hpp>
+#include <VectorData.hpp>
 
 #define WINDOWS_SYSTEM
 #ifdef WINDOWS_SYSTEM
@@ -25,8 +26,10 @@ private:
     string rootPath;
     vector<string> infNameList;
     vector<string> rawNameList;
+    vector<string> vecNameList;
     FileInfo *info;
-    VolumeData *data;
+    VolumeData *data1;
+    VectorData *data2;
     string endian;
 
 public:
@@ -37,6 +40,7 @@ public:
     bool isBigEndian();
     
     void readFile(string, string);
+    void readFile(string);
     void readInf(string);
     void readRawData(string);
     template<typename T>
@@ -44,8 +48,10 @@ public:
 
     vector<string> getInfNameList() const;
     vector<string> getRawNameList() const;
+    vector<string> getVecNameList() const;
     FileInfo* getInfo() const;
     VolumeData* getVolumeData() const;
+    VectorData* getVectorData() const;
 };
 
 template<typename T>
@@ -64,19 +70,19 @@ void FileReader::readRawData(string filename)
     }
     
     int sizeOfValue = info->getSizeOfValueType();
-    long long int byteCount = sizeOfValue * data->resolution.x * data->resolution.y * data->resolution.z;
+    long long int byteCount = sizeOfValue * data1->resolution.x * data1->resolution.y * data1->resolution.z;
     char *buffer = new char[byteCount];
     
     fs.read(buffer, byteCount);
     fs.close();
 
-    vector<vector<vector<float>>> vertexValues(data->resolution.x, vector<vector<float>>(data->resolution.y, vector<float>(data->resolution.z)));
+    vector<vector<vector<float>>> vertexValues(data1->resolution.x, vector<vector<float>>(data1->resolution.y, vector<float>(data1->resolution.z)));
     long long int pointer = 0;
     bool toReverse = (endian != info->getEndian()) ? true : false;
 
-    for(int x = 0; x < data->resolution.x; x++)
-    for(int y = 0; y < data->resolution.y; y++)
-    for(int z = 0; z < data->resolution.z; z++)
+    for(int x = 0; x < data1->resolution.x; x++)
+    for(int y = 0; y < data1->resolution.y; y++)
+    for(int z = 0; z < data1->resolution.z; z++)
     {
         if(toReverse)
             reverse(buffer + pointer, buffer + pointer + sizeOfValue);
@@ -88,6 +94,6 @@ void FileReader::readRawData(string filename)
         vertexValues[x][y][z] = (float) rawData;
     }
 
-    data->setData(vertexValues);
-    data->setGradient();
+    data1->setValue(vertexValues);
+    data1->setGradient();
 }

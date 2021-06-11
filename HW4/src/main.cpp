@@ -2,7 +2,7 @@
 
 int main()
 {
-    WindowManager wm("Isosurface", 1200, 900, "#version 460");
+    WindowManager wm("Visualization", 1200, 900, "#version 460");
     wm.initGUI();
     wm.initObjects();
     wm.initCallbacks();

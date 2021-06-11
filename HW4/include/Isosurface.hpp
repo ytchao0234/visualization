@@ -5,7 +5,8 @@ using namespace std;
 class Isosurface: public Method
 {
 private:
-    VolumeData *data;
+    VolumeData *data1;
+    VectorData *data2;
 
     Shader *shader;
     unsigned int *VAO;

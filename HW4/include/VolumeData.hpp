@@ -10,9 +10,9 @@ public:
     glm::ivec3 resolution;
     glm::vec3 voxelSize;
 
-    vector<vector<vector<float>>> data;
-    float dataMin;
-    float dataMax;
+    vector<vector<vector<float>>> value;
+    float valueMin;
+    float valueMax;
 
     vector<vector<vector<vector<float>>>> gradient;
     vector<vector<vector<float>>> gradMag;
@@ -24,6 +24,6 @@ public:
     ~VolumeData();
     void setResolution(int, int, int);
     void setVoxelSize(float, float, float);
-    void setData(vector<vector<vector<float>>>);
+    void setValue(vector<vector<vector<float>>>);
     void setGradient();
 };

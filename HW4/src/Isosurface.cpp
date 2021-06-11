@@ -2,7 +2,7 @@
 
 Isosurface::Isosurface(const VolumeData* data, int isovalue)
 {
-    this->data = new VolumeData(data);
+    this->data1 = new VolumeData(data);
     this->isovalue = isovalue;
     
     this->shader = new Shader("src/Shaders/isosurface.vert", "src/Shaders/isosurface.frag");
@@ -19,7 +19,7 @@ Isosurface::Isosurface(const VolumeData* data, int isovalue)
 
 Isosurface::~Isosurface()
 {
-    delete data;
+    delete data1;
     delete shader;
     delete VAO;
     delete VBO;
@@ -51,7 +51,7 @@ void Isosurface::draw(glm::mat4 projection, glm::mat4 view, const vector<float> 
     shader->setMatrix4("view", glm::value_ptr(view));
 
     glm::mat4 model = glm::mat4(1.0f);
-    model = glm::scale(model, glm::vec3(data->voxelSize.x, data->voxelSize.y, data->voxelSize.z));
+    model = glm::scale(model, glm::vec3(data1->voxelSize.x, data1->voxelSize.y, data1->voxelSize.z));
     shader->setMatrix4("model", glm::value_ptr(model));
 
     shader->setFloatVec("clipping", clipping, 4);
@@ -74,9 +74,9 @@ void Isosurface::marchingCube()
 {
     vertices.clear();
 
-    for(int x = 0; x < data->resolution.x - 1; x++)
-    for(int y = 0; y < data->resolution.y - 1; y++)
-    for(int z = 0; z < data->resolution.z - 1; z++)
+    for(int x = 0; x < data1->resolution.x - 1; x++)
+    for(int y = 0; y < data1->resolution.y - 1; y++)
+    for(int z = 0; z < data1->resolution.z - 1; z++)
     {
         marchSingleCube(x, y, z);
     }
@@ -94,7 +94,7 @@ void Isosurface::marchSingleCube(int x, int y, int z)
         int yoffset = offsetFromBaseVertex[i][1];
         int zoffset = offsetFromBaseVertex[i][2];
 
-        if( data->data[x + xoffset][y + yoffset][z + zoffset] > isovalue )
+        if( data1->value[x + xoffset][y + yoffset][z + zoffset] > isovalue )
         {
             compareWithIsovalue |= (1 << i);
         }
@@ -129,18 +129,18 @@ void Isosurface::setVertices(vector<int> baseVertex, vector<int> interEdges)
 
         base = glm::vec3(x0, y0, z0);
         direction = glm::vec3( x1-x0, y1-y0, z1-z0 );
-        ratio = (isovalue - data->data[x0][y0][z0]) / (data->data[x1][y1][z1] - data->data[x0][y0][z0]);
+        ratio = (isovalue - data1->value[x0][y0][z0]) / (data1->value[x1][y1][z1] - data1->value[x0][y0][z0]);
 
-        vertices.push_back(base.x + ratio * direction.x - data->resolution.x / 2.0f);
-        vertices.push_back(base.y + ratio * direction.y - data->resolution.y / 2.0f);
-        vertices.push_back(base.z + ratio * direction.z - data->resolution.z / 2.0f);
+        vertices.push_back(base.x + ratio * direction.x - data1->resolution.x / 2.0f);
+        vertices.push_back(base.y + ratio * direction.y - data1->resolution.y / 2.0f);
+        vertices.push_back(base.z + ratio * direction.z - data1->resolution.z / 2.0f);
 
-        glm::vec3 grad = glm::vec3(data->gradient[x0][y0][z0][0] * (1.0f-ratio) +
-                                   data->gradient[x1][y1][z1][0] * ratio,
-                                   data->gradient[x0][y0][z0][1] * (1.0f-ratio) +
-                                   data->gradient[x1][y1][z1][1] * ratio,
-                                   data->gradient[x0][y0][z0][2] * (1.0f-ratio) +
-                                   data->gradient[x1][y1][z1][2] * ratio);
+        glm::vec3 grad = glm::vec3(data1->gradient[x0][y0][z0][0] * (1.0f-ratio) +
+                                   data1->gradient[x1][y1][z1][0] * ratio,
+                                   data1->gradient[x0][y0][z0][1] * (1.0f-ratio) +
+                                   data1->gradient[x1][y1][z1][1] * ratio,
+                                   data1->gradient[x0][y0][z0][2] * (1.0f-ratio) +
+                                   data1->gradient[x1][y1][z1][2] * ratio);
         
         grad = glm::normalize(grad);
 

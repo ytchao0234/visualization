@@ -2,30 +2,30 @@
 
 Histogram::Histogram(const VolumeData* source)
 {
-    data_origin.assign((int)(source->dataMax - source->dataMin) + 1, 0);
-    rangeMin_origin = source->dataMin;
-    rangeMax_origin = source->dataMax;
-    rangeOffset_origin = 0 - source->dataMin;
+    data_origin.assign((int)(source->valueMax - source->valueMin) + 1, 0);
+    rangeMin_origin = source->valueMin;
+    rangeMax_origin = source->valueMax;
+    rangeOffset_origin = 0 - source->valueMin;
     valueMin_origin = 0.0f;
     valueMax_origin = 0.0f;
 
-    data_log.assign((int)(source->dataMax - source->dataMin) + 1, 0);
-    rangeMin_log = source->dataMin;
-    rangeMax_log = source->dataMax;
-    rangeOffset_log = 0 - source->dataMin;
+    data_log.assign((int)(source->valueMax - source->valueMin) + 1, 0);
+    rangeMin_log = source->valueMin;
+    rangeMax_log = source->valueMax;
+    rangeOffset_log = 0 - source->valueMin;
     valueMin_log = 0.0f;
     valueMax_log = 0.0f;
 
-    data_equal.assign((int)(source->dataMax - source->dataMin) + 1, 0);
-    rangeMin_equal = source->dataMin;
-    rangeMax_equal = source->dataMax;
-    rangeOffset_equal = 0 - source->dataMin;
+    data_equal.assign((int)(source->valueMax - source->valueMin) + 1, 0);
+    rangeMin_equal = source->valueMin;
+    rangeMax_equal = source->valueMax;
+    rangeOffset_equal = 0 - source->valueMin;
     valueMin_equal = 0.0f;
     valueMax_equal = 0.0f;
 
     int index_origin = 0;
 
-    for(auto x: source->data)
+    for(auto x: source->value)
     for(auto y:    x)
     for(auto z:    y)
     {
@@ -41,7 +41,7 @@ Histogram::Histogram(const VolumeData* source)
         valueMax_log = max(valueMax_log, data_log[i]);
     }
 
-    vector<float> cdf((int)(source->dataMax - source->dataMin) + 1, 0);
+    vector<float> cdf((int)(source->valueMax - source->valueMin) + 1, 0);
 
     cdf[0] = data_origin[0];
     float cdfMin = cdf[0];

@@ -2,9 +2,9 @@
 
 Heatmap::Heatmap(const VolumeData* source, float maxLimit)
 {
-    rangeMin_intensity = source->dataMin;
-    rangeMax_intensity = source->dataMax;
-    rangeOffset_intensity = 0 - source->dataMin;
+    rangeMin_intensity = source->valueMin;
+    rangeMax_intensity = source->valueMax;
+    rangeOffset_intensity = 0 - source->valueMin;
 
     if(maxLimit > source->gradMax)
         maxLimit_gradMag = source->gradMax;
@@ -42,7 +42,7 @@ Heatmap::Heatmap(const VolumeData* source, float maxLimit)
         else
             index_gradMag = 20*log2f(source->gradMag[x][y][z]);
 
-        index_intensity = source->data[x][y][z] + rangeOffset_intensity;
+        index_intensity = source->value[x][y][z] + rangeOffset_intensity;
 
         temp[index_gradMag][index_intensity] ++;
     }

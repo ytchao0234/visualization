@@ -12,7 +12,7 @@ WindowManager::WindowManager(string title, int width, int height, string glslVer
     this->adjust = 1.0f;
     this->threshold = 0.8f;
     this->glslVersion = glslVersion;
-    this->methods = {"Isosurface", "Ray Casting", "Slicing"};
+    this->methods = {"Isosurface", "Ray Casting", "Slicing", "StreamLine"};
     this->importList.clear();
 
     glfwInit();
@@ -124,131 +124,172 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
 
         ImGui::Text("File: ");
 
-        static string selectedInf = "engine";
-        static string selectedRaw = selectedInf;
-        static int isovalue = 80;
-        static bool toLoad = false;
-
-        if (ImGui::BeginCombo(".inf", selectedInf.c_str()))
+        if(selectedMethod == "StreamLine")
         {
-            for (auto inf: fr->getInfNameList())
-            {
-                if(ImGui::Selectable(inf.c_str()))
-                {
-                    selectedInf = inf;
-                    selectedRaw = selectedInf;
-                    toLoad = false;
-                }
-                if(selectedInf == inf)
-                {
-                    ImGui::SetItemDefaultFocus();
-                }
-            }
-            ImGui::EndCombo();
-        }
+            static string selectedVec = "1";
+            static bool toLoad_s = false;
 
-        if (ImGui::BeginCombo(".raw", selectedRaw.c_str()))
-        {
-            for (auto raw: fr->getRawNameList())
+            if (ImGui::BeginCombo(".vec", selectedVec.c_str()))
             {
-                if(strstr(raw.c_str(), selectedInf.c_str()))
+                for (auto vec: fr->getVecNameList())
                 {
-                    if(ImGui::Selectable(raw.c_str()))
+                    if(ImGui::Selectable(vec.c_str()))
                     {
-                        selectedRaw = raw;
-                        toLoad = false;
+                        selectedVec = vec;
+                        fr->readFile(selectedVec);
+                        toLoad_s = true;
                     }
-                    if(selectedRaw == raw)
+                    if(selectedVec == vec)
                     {
                         ImGui::SetItemDefaultFocus();
                     }
                 }
+                ImGui::EndCombo();
             }
-            ImGui::EndCombo();
-        }
-        
-        if(selectedMethod == "Isosurface" && fr->getVolumeData()->dataMax > 0)
-            if(ImGui::SliderInt(to_string((int)(fr->getVolumeData()->dataMax)).c_str(), &isovalue,
-                            fr->getVolumeData()->dataMin, fr->getVolumeData()->dataMax))
-                toLoad = true;
 
-
-        if(ImGui::Button("Read File"))
-        {
-            fr->readFile(selectedInf, selectedRaw);
-            gMaxLimit = fr->getVolumeData()->gradMax;
-
-            if(histogram != NULL) delete histogram;
-            histogram = new Histogram(fr->getVolumeData());
-
-            if(heatmap != NULL) delete heatmap;
-            heatmap = new Heatmap(fr->getVolumeData(), gMaxLimit);
-
-            toLoad = true;
-        }
-
-        ImGui::SameLine();
-
-        if(ImGui::Button("Clear"))
-        {
-            volumeList.clear();
-        }
-
-        if(toLoad)
-        {
-            if(ImGui::Button("Load Single"))
+            if(toLoad_s)
             {
-                volumeList.clear();
+                if(ImGui::Button("Load"))
+                {
 
-                if(selectedMethod == "Isosurface")
-                    volumeList.push_back(new Isosurface(fr->getVolumeData(), isovalue));
-                else if(selectedMethod == "Ray Casting")
-                    volumeList.push_back(new RayCasting(fr->getVolumeData()));
+                }
 
-                volumeList.back()->makeVertices();
-                toLoad = false;
+                ImGui::SameLine();
+
+                if(ImGui::Button("Clear"))
+                {
+
+                }
+            }
+        }
+        else
+        {
+            static string selectedInf = "engine";
+            static string selectedRaw = selectedInf;
+            static int isovalue = 80;
+            static bool toLoad = false;
+
+            if (ImGui::BeginCombo(".inf", selectedInf.c_str()))
+            {
+                for (auto inf: fr->getInfNameList())
+                {
+                    if(ImGui::Selectable(inf.c_str()))
+                    {
+                        selectedInf = inf;
+                        selectedRaw = selectedInf;
+                        toLoad = false;
+                    }
+                    if(selectedInf == inf)
+                    {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+
+            if (ImGui::BeginCombo(".raw", selectedRaw.c_str()))
+            {
+                for (auto raw: fr->getRawNameList())
+                {
+                    if(strstr(raw.c_str(), selectedInf.c_str()))
+                    {
+                        if(ImGui::Selectable(raw.c_str()))
+                        {
+                            selectedRaw = raw;
+                            toLoad = false;
+                        }
+                        if(selectedRaw == raw)
+                        {
+                            ImGui::SetItemDefaultFocus();
+                        }
+                    }
+                }
+                ImGui::EndCombo();
+            }
+            
+            if(selectedMethod == "Isosurface" && fr->getVolumeData()->valueMax > 0)
+                if(ImGui::SliderInt(to_string((int)(fr->getVolumeData()->valueMax)).c_str(), &isovalue,
+                                fr->getVolumeData()->valueMin, fr->getVolumeData()->valueMax))
+                    toLoad = true;
+
+
+            if(ImGui::Button("Read File"))
+            {
+                fr->readFile(selectedInf, selectedRaw);
+                gMaxLimit = fr->getVolumeData()->gradMax;
+
+                if(histogram != NULL) delete histogram;
+                histogram = new Histogram(fr->getVolumeData());
+
+                if(heatmap != NULL) delete heatmap;
+                heatmap = new Heatmap(fr->getVolumeData(), gMaxLimit);
+
+                toLoad = true;
             }
 
             ImGui::SameLine();
 
-            if(ImGui::Button("Load Multiple"))
+            if(ImGui::Button("Clear"))
             {
-                if(selectedMethod == "Isosurface")
-                    volumeList.push_back(new Isosurface(fr->getVolumeData(), isovalue));
-                else if(selectedMethod == "Ray Casting")
-                    volumeList.push_back(new RayCasting(fr->getVolumeData()));
-
-                volumeList.back()->makeVertices();
-                toLoad = false;
-            }
-        }
-
-        ImGui::NewLine();
-
-        if(selectedMethod == "Isosurface")
-        {
-            ImGui::Text("Clipping Plane: ");
-
-            if(ImGui::SliderFloat("x", &clipping[0], -1.0f, 1.0f)|
-            ImGui::SliderFloat("y", &clipping[1], -1.0f, 1.0f)|
-            ImGui::SliderFloat("z", &clipping[2], -1.0f, 1.0f))
-            {
-                glm::vec3 temp = glm::vec3(clipping[0], clipping[1], clipping[2]);
-                temp = glm::normalize(temp);
-
-                clipping[0] = temp.x; clipping[1] = temp.y; clipping[2] = temp.z;
+                volumeList.clear();
             }
 
-            ImGui::SliderFloat("offset", &clipping[3], -500.0f, 500.0f);
-            ImGui::Checkbox("make cross-section", &makeCrossSection);
-        }
-        else if(selectedMethod == "Ray Casting")
-        {
-            ImGui::Text("Parameters: ");
+            if(toLoad)
+            {
+                if(ImGui::Button("Load Single"))
+                {
+                    volumeList.clear();
 
-            if(ImGui::SliderFloat("step", &gap, 0.1f, 10.0f));
-            if(ImGui::SliderFloat("adjust", &adjust, 0.01f, 1.0f));
-            if(ImGui::SliderFloat("threshold", &threshold, 0.1f, 1.0f));
+                    if(selectedMethod == "Isosurface")
+                        volumeList.push_back(new Isosurface(fr->getVolumeData(), isovalue));
+                    else if(selectedMethod == "Ray Casting")
+                        volumeList.push_back(new RayCasting(fr->getVolumeData()));
+
+                    volumeList.back()->makeVertices();
+                    toLoad = false;
+                }
+
+                ImGui::SameLine();
+
+                if(ImGui::Button("Load Multiple"))
+                {
+                    if(selectedMethod == "Isosurface")
+                        volumeList.push_back(new Isosurface(fr->getVolumeData(), isovalue));
+                    else if(selectedMethod == "Ray Casting")
+                        volumeList.push_back(new RayCasting(fr->getVolumeData()));
+
+                    volumeList.back()->makeVertices();
+                    toLoad = false;
+                }
+            }
+
+            ImGui::NewLine();
+
+            if(selectedMethod == "Isosurface")
+            {
+                ImGui::Text("Clipping Plane: ");
+
+                if(ImGui::SliderFloat("x", &clipping[0], -1.0f, 1.0f)|
+                ImGui::SliderFloat("y", &clipping[1], -1.0f, 1.0f)|
+                ImGui::SliderFloat("z", &clipping[2], -1.0f, 1.0f))
+                {
+                    glm::vec3 temp = glm::vec3(clipping[0], clipping[1], clipping[2]);
+                    temp = glm::normalize(temp);
+
+                    clipping[0] = temp.x; clipping[1] = temp.y; clipping[2] = temp.z;
+                }
+
+                ImGui::SliderFloat("offset", &clipping[3], -500.0f, 500.0f);
+                ImGui::Checkbox("make cross-section", &makeCrossSection);
+            }
+            else if(selectedMethod == "Ray Casting")
+            {
+                ImGui::Text("Parameters: ");
+
+                if(ImGui::SliderFloat("step", &gap, 0.1f, 10.0f));
+                if(ImGui::SliderFloat("adjust", &adjust, 0.01f, 1.0f));
+                if(ImGui::SliderFloat("threshold", &threshold, 0.1f, 1.0f));
+            }
         }
     } ImGui::End();
 }
@@ -814,7 +855,7 @@ void WindowManager::initObjects()
     light = new Light(camera->getPosition(), camera->getDirection());
     cubeModel = new CubeModel();
 
-    fr = new FileReader("./Data/VolumeData/");
+    fr = new FileReader("./Data/");
     fr->initNameList();
 
     histogram = NULL;

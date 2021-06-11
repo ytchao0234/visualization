@@ -2,7 +2,7 @@
 
 RayCasting::RayCasting(const VolumeData* data)
 {
-    this->data = new VolumeData(data);
+    this->data1 = new VolumeData(data);
     
     this->shader = new Shader("src/Shaders/rayCasting.vert", "src/Shaders/rayCasting.frag");
     this->VAO = new unsigned int[1];
@@ -12,13 +12,13 @@ RayCasting::RayCasting(const VolumeData* data)
     this->vertices.clear();
     
     this->texture = new Texture(2);
-    this->texture3D = new unsigned char[data->resolution.x * data->resolution.y * data->resolution.z][4];
+    this->texture3D = new unsigned char[data1->resolution.x * data1->resolution.y * data1->resolution.z][4];
     this->texture1D = new unsigned char[256][4];
 }
 
 RayCasting::~RayCasting()
 {
-    delete this->data;
+    delete this->data1;
     delete this->shader;
     delete this->VAO;
     delete this->VBO;
@@ -29,9 +29,9 @@ RayCasting::~RayCasting()
 
 void RayCasting::makeVertices()
 {
-    float x = data->resolution.x;
-    float y = data->resolution.y;
-    float z = data->resolution.z;
+    float x = data1->resolution.x;
+    float y = data1->resolution.y;
+    float z = data1->resolution.z;
 
     // 0: 0.0f, 0.0f, 0.0f,     0.0f, 0.0f, 0.0f,
     // 1:    x, 0.0f, 0.0f,     1.0f, 0.0f, 0.0f,
@@ -116,11 +116,11 @@ void RayCasting::draw(glm::mat4 projection, glm::mat4 view, const vector<float> 
     shader->setMatrix4("view", glm::value_ptr(view));
 
     glm::mat4 model = glm::mat4(1.0f);
-    model = glm::scale(model, glm::vec3(data->voxelSize.x, data->voxelSize.y, data->voxelSize.z));
+    model = glm::scale(model, glm::vec3(data1->voxelSize.x, data1->voxelSize.y, data1->voxelSize.z));
     shader->setMatrix4("model", glm::value_ptr(model));
 
-    shader->setFloatVec("resolution", {(float)data->resolution.x, (float)data->resolution.y, (float)data->resolution.z}, 3);
-    shader->setFloatVec("voxelSize", {data->voxelSize.x, data->voxelSize.y, data->voxelSize.z}, 3);
+    shader->setFloatVec("resolution", {(float)data1->resolution.x, (float)data1->resolution.y, (float)data1->resolution.z}, 3);
+    shader->setFloatVec("voxelSize", {data1->voxelSize.x, data1->voxelSize.y, data1->voxelSize.z}, 3);
 
     shader->setFloat("gap", gap);
     shader->setFloat("adjust", adjust);
@@ -154,17 +154,17 @@ Shader* RayCasting::getShader() const
 
 void RayCasting::make3DTexture()
 {
-    for(int x = 0; x < data->resolution.x; x++)
-    for(int y = 0; y < data->resolution.y; y++)
-    for(int z = 0; z < data->resolution.z; z++)
+    for(int x = 0; x < data1->resolution.x; x++)
+    for(int y = 0; y < data1->resolution.y; y++)
+    for(int z = 0; z < data1->resolution.z; z++)
     {
-        texture3D[z*data->resolution.y*data->resolution.x + y*data->resolution.x + x][0] = (data->gradient[x][y][z][0] + 1) / 2 * 255;
-        texture3D[z*data->resolution.y*data->resolution.x + y*data->resolution.x + x][1] = (data->gradient[x][y][z][1] + 1) / 2 * 255;
-        texture3D[z*data->resolution.y*data->resolution.x + y*data->resolution.x + x][2] = (data->gradient[x][y][z][2] + 1) / 2 * 255;
-        texture3D[z*data->resolution.y*data->resolution.x + y*data->resolution.x + x][3] = (data->data[x][y][z] - data->dataMin) / (data->dataMax - data->dataMin) * 255;
+        texture3D[z*data1->resolution.y*data1->resolution.x + y*data1->resolution.x + x][0] = (data1->gradient[x][y][z][0] + 1) / 2 * 255;
+        texture3D[z*data1->resolution.y*data1->resolution.x + y*data1->resolution.x + x][1] = (data1->gradient[x][y][z][1] + 1) / 2 * 255;
+        texture3D[z*data1->resolution.y*data1->resolution.x + y*data1->resolution.x + x][2] = (data1->gradient[x][y][z][2] + 1) / 2 * 255;
+        texture3D[z*data1->resolution.y*data1->resolution.x + y*data1->resolution.x + x][3] = (data1->value[x][y][z] - data1->valueMin) / (data1->valueMax - data1->valueMin) * 255;
     }
     
-    texture->make3DTexture(0, texture3D, data->resolution.x, data->resolution.y, data->resolution.z);
+    texture->make3DTexture(0, texture3D, data1->resolution.x, data1->resolution.y, data1->resolution.z);
 }
 
 void RayCasting::make1DTexture()

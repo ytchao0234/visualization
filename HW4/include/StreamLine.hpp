@@ -8,7 +8,7 @@
 #include <Texture.hpp>
 using namespace std;
 
-class Method
+class StreamLine
 {
 private:
     VolumeData *data1;
