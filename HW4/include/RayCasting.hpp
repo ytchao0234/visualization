@@ -15,6 +15,7 @@ private:
 
     Texture *texture;
     unsigned char (*texture3D)[4];
+    unsigned char (*texture2D)[4];
     unsigned char (*texture1D)[4];
 
 public:

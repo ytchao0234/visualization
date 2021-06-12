@@ -13,6 +13,7 @@ RayCasting::RayCasting(const VolumeData* data)
     
     this->texture = new Texture(2);
     this->texture3D = new unsigned char[data1->resolution.x * data1->resolution.y * data1->resolution.z][4];
+    this->texture2D = NULL;
     this->texture1D = new unsigned char[256][4];
 }
 

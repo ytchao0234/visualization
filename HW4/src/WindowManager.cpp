@@ -11,6 +11,9 @@ WindowManager::WindowManager(string title, int width, int height, string glslVer
     this->gap = 2.0f;
     this->adjust = 1.0f;
     this->threshold = 0.8f;
+    this->h_step = 0.1;
+    this->gridSize = 1;
+    this->distanceLimit = 0.1;
     this->glslVersion = glslVersion;
     this->methods = {"Isosurface", "Ray Casting", "Slicing", "StreamLine"};
     this->importList.clear();
@@ -72,7 +75,7 @@ void WindowManager::renderGUI()
     static float gMaxLimit = fr->getVolumeData()->gradMax;
 
     ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_Once);
-    ImGui::SetNextWindowSize(ImVec2(300, 420), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(320, 420), ImGuiCond_Once);
     makeMainMenu(toRenderGraph, toRenderCanvas, selectedMethod, gMaxLimit);
 
     if(toRenderGraph)
@@ -124,13 +127,16 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
 
         ImGui::Text("File: ");
 
+        static bool drawing_s = false;
+
         if(selectedMethod == "StreamLine")
         {
             static string selectedVec = "1";
-            static bool toLoad_s = false;
+            static bool toLoad_s = true;
 
             if (ImGui::BeginCombo(".vec", selectedVec.c_str()))
             {
+                toLoad_s = false;
                 for (auto vec: fr->getVecNameList())
                 {
                     if(ImGui::Selectable(vec.c_str()))
@@ -138,6 +144,7 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
                         selectedVec = vec;
                         fr->readFile(selectedVec);
                         toLoad_s = true;
+                        drawing_s = false;
                     }
                     if(selectedVec == vec)
                     {
@@ -147,23 +154,69 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
                 ImGui::EndCombo();
             }
 
+            ImGui::NewLine();
+            ImGui::Text("Parameters: ");
+
+            if(ImGui::InputDouble("h", &h_step, 0.1, 1))
+            {
+                if(h_step < 0.1) h_step = 0.1;
+                else if(h_step > 1) h_step = 1;
+
+                volumeList.clear();
+                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, gridSize, distanceLimit));
+                
+                if(drawing_s)
+                    volumeList.back()->makeVertices();
+            }
+
+            if(ImGui::InputInt("grid size", &gridSize, 1, 10))
+            {
+                if(gridSize < 1) gridSize = 1;
+                else if(gridSize > 10) gridSize = 10;
+
+                volumeList.clear();
+                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, gridSize, distanceLimit));
+                
+                if(drawing_s)
+                    volumeList.back()->makeVertices();
+            }
+
+            if(ImGui::InputDouble("distance limit", &distanceLimit, 0.1, 1))
+            {
+                if(distanceLimit < 0.1) distanceLimit = 0.1;
+                else if(distanceLimit > 1) distanceLimit = 1;
+
+                volumeList.clear();
+                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, gridSize, distanceLimit));
+                
+                if(drawing_s)
+                    volumeList.back()->makeVertices();
+            }
+
             if(toLoad_s)
             {
                 if(ImGui::Button("Load"))
                 {
-
+                    toLoad_s = false;
+                    drawing_s = true;
+                    volumeList.clear();
+                    volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, gridSize, distanceLimit));
+                    volumeList.back()->makeVertices();
                 }
 
                 ImGui::SameLine();
 
                 if(ImGui::Button("Clear"))
                 {
-
+                    volumeList.clear();
+                    drawing_s = false;
                 }
             }
         }
         else
         {
+            drawing_s = false;
+
             static string selectedInf = "engine";
             static string selectedRaw = selectedInf;
             static int isovalue = 80;
@@ -857,6 +910,7 @@ void WindowManager::initObjects()
 
     fr = new FileReader("./Data/");
     fr->initNameList();
+    fr->readFile("1");
 
     histogram = NULL;
     heatmap = NULL;

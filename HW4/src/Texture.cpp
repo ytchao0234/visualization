@@ -45,6 +45,30 @@ void Texture::make3DTexture(int order, unsigned char (*data)[4], int width, int 
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 }
 
+void Texture::make2DTexture(int order, unsigned char (*data)[4], int width, int height)
+{
+    glActiveTexture(GL_TEXTURE0 + order);
+    glBindTexture(GL_TEXTURE_2D, this->tex[order]);
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA,
+        width,
+        height,
+        0,
+        GL_RGBA,
+        GL_UNSIGNED_BYTE,
+        data
+    );
+    
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+}
+
 void Texture::make1DTexture(int order, unsigned char (*data)[4], int length)
 {
     glActiveTexture(GL_TEXTURE0 + order);

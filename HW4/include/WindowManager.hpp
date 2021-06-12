@@ -13,6 +13,7 @@
 #include <Method.hpp>
 #include <Isosurface.hpp>
 #include <RayCasting.hpp>
+#include <StreamLine.hpp>
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_glfw.h>
@@ -35,6 +36,9 @@ private:
     float gap;
     float adjust;
     float threshold;
+    double h_step;
+    int gridSize;
+    double distanceLimit;
     GLFWwindow* window;
     Camera *camera;
     Light *light;

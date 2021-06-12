@@ -23,12 +23,12 @@ void VectorData::print()
 
     cout << endl;
 
-    int i = 0;
-    for(auto val: this->value)
+    for(auto y: this->value)
     {
-        printf("(%12lf, %12lf)", val.first, val.second);
-
-        if(++i % this->size.first == 0 )
-            cout << endl;
+        for(auto x: y)
+        {
+            printf("(%12lf, %12lf)", x.first, x.second);
+        }
+        cout << endl;
     }
 }

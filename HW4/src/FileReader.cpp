@@ -114,22 +114,22 @@ void FileReader::readFile(string filename)
     double value1, value2;
     int i = 0;
 
-    this->data2->value.clear();
-    while(true)
+    ss >> value1 >> value2;
+
+    this->data2->size = {value1, value2};
+    this->data2->value.assign(this->data2->size.first,
+                              vector<pair<double, double>>(this->data2->size.second));
+    
+    for(int x = 0; x < this->data2->size.first; x++)
+    for(int y = 0; y < this->data2->size.second; y++)
     {
-        ss >> value1;
-        ss >> value2;
+        ss >> value1 >> value2;
 
-        if(ss.fail()) break;
-
-        if(i == 0)
-            this->data2->size = {value1, value2};
-        else
-            this->data2->value.push_back({value1, value2});
+        this->data2->value[x][y] = {value1, value2};
 
         i++;
     }
-
+    
     data2->print();
 }
 

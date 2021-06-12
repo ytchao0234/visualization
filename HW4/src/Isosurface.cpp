@@ -14,6 +14,7 @@ Isosurface::Isosurface(const VolumeData* data, int isovalue)
     
     this->texture = NULL;
     this->texture3D = NULL;
+    this->texture2D = NULL;
     this->texture1D = NULL;
 }
 

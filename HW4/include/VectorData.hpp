@@ -7,7 +7,7 @@ class VectorData
 {
 public:
     pair<int, int> size;
-    vector<pair<double, double>> value;
+    vector<vector<pair<double, double>>> value;
 
     VectorData();
     VectorData(const VectorData*);
