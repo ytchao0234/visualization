@@ -15,7 +15,6 @@ WindowManager::WindowManager(string title, int width, int height, string glslVer
     this->iteration = 100;
     this->gridSize = 1;
     this->distanceLimit = 0.1;
-    this->useDefault_U = false;
     this->glslVersion = glslVersion;
     this->methods = {"Isosurface", "Ray Casting", "StreamLine"};
     this->importList.clear();
@@ -136,15 +135,6 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
             static string selectedVec = "1";
             static bool toLoad_s = true;
 
-            if(ImGui::Checkbox("Generate Test Data", &useDefault_U))
-            {
-                toLoad_s = false;
-                drawing_s = true;
-                volumeList.clear();
-                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit, useDefault_U));
-                volumeList.back()->makeVertices();
-            }
-
             if (ImGui::BeginCombo(".vec", selectedVec.c_str()))
             {
                 toLoad_s = false;
@@ -172,7 +162,7 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
                     toLoad_s = false;
                     drawing_s = true;
                     volumeList.clear();
-                    volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit, useDefault_U));
+                    volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit));
                     volumeList.back()->makeVertices();
                 }
 
@@ -185,6 +175,15 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
                 drawing_s = false;
             }
 
+            if(ImGui::Button("Generate Test Data"))
+            {
+                toLoad_s = false;
+                drawing_s = true;
+                volumeList.clear();
+                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit, true));
+                volumeList.back()->makeVertices();
+            }
+
             ImGui::NewLine();
             ImGui::Text("Parameters: ");
 
@@ -194,7 +193,7 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
                 else if(h_step > 1) h_step = 1;
 
                 volumeList.clear();
-                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit, useDefault_U));
+                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit));
                 
                 if(drawing_s)
                     volumeList.back()->makeVertices();
@@ -206,7 +205,7 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
                 else if(iteration > 1000) iteration = 1000;
 
                 volumeList.clear();
-                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit, useDefault_U));
+                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit));
                 
                 if(drawing_s)
                     volumeList.back()->makeVertices();
@@ -218,7 +217,7 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
                 else if(gridSize > 20) gridSize = 20;
 
                 volumeList.clear();
-                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit, useDefault_U));
+                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit));
                 
                 if(drawing_s)
                     volumeList.back()->makeVertices();
@@ -230,7 +229,7 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
                 else if(distanceLimit > 5) distanceLimit = 5;
 
                 volumeList.clear();
-                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit, useDefault_U));
+                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit));
                 
                 if(drawing_s)
                     volumeList.back()->makeVertices();

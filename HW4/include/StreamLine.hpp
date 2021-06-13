@@ -35,7 +35,7 @@ public:
     void setShader();
     Shader* getShader() const;
 
-    StreamLine(const VectorData*, double, int, double, double, bool);
+    StreamLine(const VectorData*, double, int, double, double, bool = false);
     ~StreamLine();
 
     void makeSingleLine(double, double);

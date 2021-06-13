@@ -48,7 +48,6 @@ void StreamLine::makeVertices()
         for(double x = 0; x < this->data2->size.first; x += this->gridSize)
         for(double y = 0; y < this->data2->size.second; y += this->gridSize)
         {
-            // cout << "---------------------------------------------------Line " << x << y << endl;
             makeSingleLine(x, y);
         }
     }
@@ -57,7 +56,6 @@ void StreamLine::makeVertices()
         for(double x = -5; x < 5; x += 0.2 * this->gridSize)
         for(double y = -5; y < 5; y += 0.2 * this->gridSize)
         {
-            // cout << "---------------------------------------------------Line " << x << y << endl;
             makeSingleLine_U(x, y);
         }
     }
@@ -131,7 +129,6 @@ void StreamLine::makeSingleLine(double x, double y)
           point.x < this->data2->size.first - this->gridSize && point.y < this->data2->size.second - this->gridSize &&
           !hasCollision(point.x, point.y))
     {
-        // printf("%12lf, %12lf\n", point.x, point.y);
         cross.insert({(int)(point.x * this->distanceLimit), (int)(point.y * this->distanceLimit)});
 
         if(count++ == this->iteration) break;
@@ -229,7 +226,6 @@ void StreamLine::makeSingleLine_U(double x, double y)
           point.x < 5 - 0.2 * this->gridSize && point.y < 5 - 0.2 * this->gridSize &&
           !hasCollision((point.x + 5) * 5, (point.y + 5) * 5))
     {
-        // printf("%12lf, %12lf\n", point.x, point.y);
         cross.insert({(int)((point.x + 5) * 5 * this->distanceLimit), (int)((point.y + 5) * 5 * this->distanceLimit)});
 
         if(count++ == this->iteration) break;

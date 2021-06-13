@@ -40,7 +40,6 @@ private:
     int iteration;
     double gridSize;
     double distanceLimit;
-    bool useDefault_U;
     GLFWwindow* window;
     Camera *camera;
     Light *light;
