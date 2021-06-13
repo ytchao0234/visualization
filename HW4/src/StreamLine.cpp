@@ -7,9 +7,14 @@ StreamLine::StreamLine(const VectorData* data, double h, int iteration, double g
     this->gridSize = gridSize;
     this->iteration = iteration;
     this->distanceLimit = 1.0 / distanceLimit;
-    this->collisionTable.assign(data->size.first * this->distanceLimit + 1, vector<bool>(data->size.second * this->distanceLimit + 1, false));
     this->valueMax = 0.0;
     this->useDefault_U = useDefault_U;
+
+    if(!useDefault_U)
+        this->collisionTable.assign(data->size.first * this->distanceLimit + 1,
+                                    vector<bool>(data->size.second * this->distanceLimit + 1, false));
+    else
+        this->collisionTable.assign(50 * this->distanceLimit + 5, vector<bool>(50 * this->distanceLimit + 5, false));
 
     this->shader = new Shader("src/Shaders/streamLine.vert", "src/Shaders/streamLine.frag", "src/Shaders/streamLine.gs");
     this->VAO = new unsigned int[1];
@@ -38,13 +43,25 @@ void StreamLine::makeVertices()
 {
     this->vertices.clear();
 
-    for(double x = 0; x < this->data2->size.first; x += gridSize)
-    for(double y = 0; y < this->data2->size.second; y += gridSize)
+    if(!this->useDefault_U)
     {
-        // cout << "---------------------------------------------------Line " << x << y << endl;
-        makeSingleLine(x, y);
+        for(double x = 0; x < this->data2->size.first; x += this->gridSize)
+        for(double y = 0; y < this->data2->size.second; y += this->gridSize)
+        {
+            // cout << "---------------------------------------------------Line " << x << y << endl;
+            makeSingleLine(x, y);
+        }
     }
-
+    else
+    {
+        for(double x = -5; x < 5; x += 0.2 * this->gridSize)
+        for(double y = -5; y < 5; y += 0.2 * this->gridSize)
+        {
+            // cout << "---------------------------------------------------Line " << x << y << endl;
+            makeSingleLine_U(x, y);
+        }
+    }
+    
     bindVertices();
     make1DTexture();
 }
@@ -72,7 +89,10 @@ void StreamLine::draw(glm::mat4 projection, glm::mat4 view, const vector<float> 
     shader->setMatrix4("view", glm::value_ptr(view));
 
     glm::mat4 model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(data2->size.first / 2.0, -data2->size.second / 2.0, 0.0));
+
+    if(!useDefault_U)
+        model = glm::translate(model, glm::vec3(data2->size.first / 2.0, -data2->size.second / 2.0, 0.0));
+
     shader->setMatrix4("model", glm::value_ptr(model));
 
     shader->setFloat("valueMax", valueMax);
@@ -107,9 +127,9 @@ void StreamLine::makeSingleLine(double x, double y)
 
     int count = 0, length = 0;
     
-    while(!hasCollision(point.x, point.y) &&
-          point.x >= 0.0 && point.y >= 0.0 &&
-          point.x < this->data2->size.first - this->gridSize && point.y < this->data2->size.second - this->gridSize)
+    while(point.x >= 0.0 && point.y >= 0.0 &&
+          point.x < this->data2->size.first - this->gridSize && point.y < this->data2->size.second - this->gridSize &&
+          !hasCollision(point.x, point.y))
     {
         // printf("%12lf, %12lf\n", point.x, point.y);
         cross.insert({(int)(point.x * this->distanceLimit), (int)(point.y * this->distanceLimit)});
@@ -181,6 +201,110 @@ void StreamLine::makeSingleLine(double x, double y)
 
     if(cross.size() > 0)
         cross.insert({(int)(point.x * this->distanceLimit), (int)(point.y * this->distanceLimit)});
+
+    for(auto cell: cross)
+    {
+        this->collisionTable[cell.first][cell.second] = true;
+    }
+
+    for(int i = 1; i <= length * 2; i++)
+    {
+        vertices[vertices.size() - i * 5 + 3]  = vertices[vertices.size() - i * 5 + 3] / length;
+    }
+}
+
+void StreamLine::makeSingleLine_U(double x, double y)
+{
+    glm::dvec2 point = glm::dvec2(x, y);
+    glm::dvec2 lb, rb, lt, rt;
+    glm::dvec2 K1, P, K2;
+    double dx, dy, lenK1;
+    pair<double, double> U_vec;
+
+    set<pair<int, int>> cross;
+
+    int count = 0, length = 0;
+    
+    while(point.x >= -5 && point.y >= -5 &&
+          point.x < 5 - 0.2 * this->gridSize && point.y < 5 - 0.2 * this->gridSize &&
+          !hasCollision((point.x + 5) * 5, (point.y + 5) * 5))
+    {
+        // printf("%12lf, %12lf\n", point.x, point.y);
+        cross.insert({(int)((point.x + 5) * 5 * this->distanceLimit), (int)((point.y + 5) * 5 * this->distanceLimit)});
+
+        if(count++ == this->iteration) break;
+
+        U_vec = default_U((int)point.x, (int)point.y);
+        lb = glm::dvec2(U_vec.first, U_vec.second);
+
+        U_vec = default_U((int)point.x + 1, (int)point.y);
+        rb = glm::dvec2(U_vec.first, U_vec.second);
+
+        U_vec = default_U((int)point.x, (int)point.y + 1);
+        lt = glm::dvec2(U_vec.first, U_vec.second);
+
+        U_vec = default_U((int)point.x + 1, (int)point.y + 1);
+        rt = glm::dvec2(U_vec.first, U_vec.second);
+
+        dx = point.x - (int)point.x;
+        dy = point.y - (int)point.y;
+
+        K1 = lb * (1-dx)*(1-dy) + rb * dx*(1-dy) +
+             lt * (1-dx)*dy     + rt * dx*dy;  
+        lenK1 = glm::length(K1);
+
+        this->vertices.push_back(point.x);
+        this->vertices.push_back(point.y);
+        this->vertices.push_back(0.0);
+        this->vertices.push_back(count);
+        this->vertices.push_back(lenK1);
+
+        P = point + this->h * glm::normalize(K1);
+
+        if(P.x < -5 || P.y < -5 ||
+           P.x >= 5 - 0.2 * this->gridSize || P.y >= 5 - 0.2 * this->gridSize)
+        {
+            this->vertices.pop_back();
+            this->vertices.pop_back();
+            this->vertices.pop_back();
+            this->vertices.pop_back();
+            this->vertices.pop_back();
+            break;
+        }
+
+        U_vec = default_U((int)P.x, (int)P.y);
+        lb = glm::dvec2(U_vec.first, U_vec.second);
+
+        U_vec = default_U((int)P.x + 1, (int)P.y);
+        rb = glm::dvec2(U_vec.first, U_vec.second);
+
+        U_vec = default_U((int)P.x, (int)P.y + 1);
+        lt = glm::dvec2(U_vec.first, U_vec.second);
+
+        U_vec = default_U((int)P.x + 1, (int)P.y + 1);
+        rt = glm::dvec2(U_vec.first, U_vec.second);
+
+        dx = P.x - (int)P.x;
+        dy = P.y - (int)P.y;
+
+        K2 = lb * (1-dx)*(1-dy) + rb * dx*(1-dy) +
+             lt * (1-dx)*dy     + rt * dx*dy;
+
+        point = point + this->h * 0.5 * (glm::normalize(K1) + glm::normalize(K2));
+
+        this->vertices.push_back(point.x);
+        this->vertices.push_back(point.y);
+        this->vertices.push_back(0.0);
+        this->vertices.push_back(count);
+        this->vertices.push_back(lenK1);
+        
+        this->valueMax = max(this->valueMax, lenK1);
+
+        length++;
+    }
+
+    if(cross.size() > 0)
+        cross.insert({(int)((point.x + 5) * 5 * this->distanceLimit), (int)((point.y + 5) * 5 * this->distanceLimit)});
 
     for(auto cell: cross)
     {

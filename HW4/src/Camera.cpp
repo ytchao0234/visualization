@@ -17,10 +17,10 @@ Camera::Camera(glm::vec3 position, float yaw, float pitch): zoomValue(25)
 
 void Camera::zoom( float value )
 {
-    zoomValue -= (float)value;
+    zoomValue -= (float)value * 0.5;
 
-    if (zoomValue < 1.0f)
-        zoomValue = 1.0f;
+    if (zoomValue < 0.1f)
+        zoomValue = 0.1f;
     else if (zoomValue > 50.0f)
         zoomValue = 50.0f;
 }
