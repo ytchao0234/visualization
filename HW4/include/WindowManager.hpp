@@ -37,8 +37,10 @@ private:
     float adjust;
     float threshold;
     double h_step;
-    int gridSize;
+    int iteration;
+    double gridSize;
     double distanceLimit;
+    bool useDefault_U;
     GLFWwindow* window;
     Camera *camera;
     Light *light;

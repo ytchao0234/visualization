@@ -14,7 +14,7 @@ class Shader
 public:
     unsigned int programID;
   
-    Shader(const char* vertexPath, const char* fragmentPath);
+    Shader(const char* vertexPath, const char* fragmentPath, const char* geometryPath = NULL);
     void use();
 
     void setBool(const string &, bool) const;

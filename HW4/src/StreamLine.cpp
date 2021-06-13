@@ -1,23 +1,26 @@
 #include <StreamLine.hpp>
 
-StreamLine::StreamLine(const VectorData* data, double h, int gridSize, double distanceLimit)
+StreamLine::StreamLine(const VectorData* data, double h, int iteration, double gridSize, double distanceLimit, bool useDefault_U)
 {
     this->data2 = new VectorData(data);
     this->h = h;
     this->gridSize = gridSize;
+    this->iteration = iteration;
     this->distanceLimit = 1.0 / distanceLimit;
-    this->collisionTable.assign(data->size.first * this->distanceLimit, vector<bool>(data->size.second * this->distanceLimit, false));
+    this->collisionTable.assign(data->size.first * this->distanceLimit + 1, vector<bool>(data->size.second * this->distanceLimit + 1, false));
+    this->valueMax = 0.0;
+    this->useDefault_U = useDefault_U;
 
-    this->shader = new Shader("src/Shaders/streamLine.vert", "src/Shaders/streamLine.frag");
+    this->shader = new Shader("src/Shaders/streamLine.vert", "src/Shaders/streamLine.frag", "src/Shaders/streamLine.gs");
     this->VAO = new unsigned int[1];
     this->VBO = new unsigned int[1];
     glGenVertexArrays(1, VAO);
     glGenBuffers(1, VBO);
     this->vertices.clear();
     
-    this->texture = new Texture(2);
+    this->texture = new Texture(1);
     this->texture3D = NULL;
-    this->texture2D = new unsigned char[data2->size.first * data2->size.second][4];
+    this->texture2D = NULL;
     this->texture1D = new unsigned char[256][4];
 }
 
@@ -28,7 +31,6 @@ StreamLine::~StreamLine()
     delete this->VAO;
     delete this->VBO;
     delete this->texture;
-    delete[] this->texture2D;
     delete[] this->texture1D;
 }
 
@@ -36,14 +38,15 @@ void StreamLine::makeVertices()
 {
     this->vertices.clear();
 
-    for(int x = 0; x < this->data2->size.first; x += gridSize)
-    for(int y = 0; y < this->data2->size.second; y += gridSize)
+    for(double x = 0; x < this->data2->size.first; x += gridSize)
+    for(double y = 0; y < this->data2->size.second; y += gridSize)
     {
         // cout << "---------------------------------------------------Line " << x << y << endl;
         makeSingleLine(x, y);
     }
 
     bindVertices();
+    make1DTexture();
 }
 
 void StreamLine::bindVertices()
@@ -53,10 +56,12 @@ void StreamLine::bindVertices()
 
     glBufferData(GL_ARRAY_BUFFER, sizeof(double) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, 3 * sizeof(double), (void*)0);
+    glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, 5 * sizeof(double), (void*)0);
     glEnableVertexAttribArray(0);
-    // glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)( 3 * sizeof(float) ));
-    // glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 1, GL_DOUBLE, GL_FALSE, 5 * sizeof(double), (void*)( 3 * sizeof(double) ));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 1, GL_DOUBLE, GL_FALSE, 5 * sizeof(double), (void*)( 4 * sizeof(double) ));
+    glEnableVertexAttribArray(2);
 }
 
 void StreamLine::draw(glm::mat4 projection, glm::mat4 view, const vector<float> clipping, bool makeCrossSection, float gap, float adjust, float threshold)
@@ -70,32 +75,20 @@ void StreamLine::draw(glm::mat4 projection, glm::mat4 view, const vector<float> 
     model = glm::translate(model, glm::vec3(data2->size.first / 2.0, -data2->size.second / 2.0, 0.0));
     shader->setMatrix4("model", glm::value_ptr(model));
 
-    // shader->setFloatVec("resolution", {(float)data1->resolution.x, (float)data1->resolution.y, (float)data1->resolution.z}, 3);
-    // shader->setFloatVec("voxelSize", {data1->voxelSize.x, data1->voxelSize.y, data1->voxelSize.z}, 3);
+    shader->setFloat("valueMax", valueMax);
+    shader->setInt("tex1D", 0);
 
-    // shader->setFloat("gap", gap);
-    // shader->setFloat("adjust", adjust);
-    // shader->setFloat("threshold", threshold);
-
-    // shader->setInt("tex3D", 0);
-    // shader->setInt("tex1D", 1);
-
-    // glEnable(GL_CULL_FACE);
-    // glCullFace(GL_BACK);
-    // glFrontFace(GL_CW);
-    
-    // texture->active3D(0);
-    // texture->active1D(1);
+    texture->active1D(0);
 
     glBindVertexArray(VAO[0]);
-    glLineWidth(0.1f);
-    glDrawArrays(GL_LINES, 0, vertices.size() / 3);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glDrawArrays(GL_LINES, 0, vertices.size() / 5);
 }
 
 void StreamLine::setShader()
 {
     delete this->shader;
-    this->shader = new Shader("src/Shaders/streamLine.vert", "src/Shaders/streamLine.frag");
+    this->shader = new Shader("src/Shaders/streamLine.vert", "src/Shaders/streamLine.frag", "src/Shaders/streamLine.gs");
 }
 
 Shader* StreamLine::getShader() const
@@ -108,11 +101,11 @@ void StreamLine::makeSingleLine(double x, double y)
     glm::dvec2 point = glm::dvec2(x, y);
     glm::dvec2 lb, rb, lt, rt;
     glm::dvec2 K1, P, K2;
-    double dx, dy;
+    double dx, dy, lenK1;
 
     set<pair<int, int>> cross;
 
-    int limit = 100, count = 0;
+    int count = 0, length = 0;
     
     while(!hasCollision(point.x, point.y) &&
           point.x >= 0.0 && point.y >= 0.0 &&
@@ -121,11 +114,7 @@ void StreamLine::makeSingleLine(double x, double y)
         // printf("%12lf, %12lf\n", point.x, point.y);
         cross.insert({(int)(point.x * this->distanceLimit), (int)(point.y * this->distanceLimit)});
 
-        if(count++ == limit) break;
-
-        this->vertices.push_back(-point.x);
-        this->vertices.push_back(point.y);
-        this->vertices.push_back(0.0);
+        if(count++ == this->iteration) break;
 
         lb = glm::dvec2(data2->value[(int)point.x    ][(int)point.y    ].first,
                         data2->value[(int)point.x    ][(int)point.y    ].second);
@@ -140,16 +129,25 @@ void StreamLine::makeSingleLine(double x, double y)
         dy = point.y - (int)point.y;
 
         K1 = lb * (1-dx)*(1-dy) + rb * dx*(1-dy) +
-             lt * (1-dx)*dy     + rt * dx*dy;
+             lt * (1-dx)*dy     + rt * dx*dy;  
+        lenK1 = glm::length(K1);
+
+        this->vertices.push_back(-point.x);
+        this->vertices.push_back(point.y);
+        this->vertices.push_back(0.0);
+        this->vertices.push_back(count);
+        this->vertices.push_back(lenK1);
 
         P = point + this->h * glm::normalize(K1);
 
         if(P.x < 0.0 || P.y < 0.0 ||
            P.x >= this->data2->size.first - this->gridSize || P.y >= this->data2->size.second - this->gridSize)
         {
-            vertices.pop_back();
-            vertices.pop_back();
-            vertices.pop_back();
+            this->vertices.pop_back();
+            this->vertices.pop_back();
+            this->vertices.pop_back();
+            this->vertices.pop_back();
+            this->vertices.pop_back();
             break;
         }
 
@@ -173,6 +171,12 @@ void StreamLine::makeSingleLine(double x, double y)
         this->vertices.push_back(-point.x);
         this->vertices.push_back(point.y);
         this->vertices.push_back(0.0);
+        this->vertices.push_back(count);
+        this->vertices.push_back(lenK1);
+        
+        this->valueMax = max(this->valueMax, lenK1);
+
+        length++;
     }
 
     if(cross.size() > 0)
@@ -182,6 +186,11 @@ void StreamLine::makeSingleLine(double x, double y)
     {
         this->collisionTable[cell.first][cell.second] = true;
     }
+
+    for(int i = 1; i <= length * 2; i++)
+    {
+        vertices[vertices.size() - i * 5 + 3]  = vertices[vertices.size() - i * 5 + 3] / length;
+    }
 }
 
 bool StreamLine::hasCollision(double x, double y)
@@ -189,27 +198,37 @@ bool StreamLine::hasCollision(double x, double y)
     return this->collisionTable[(int)(x * this->distanceLimit)][(int)(y * this->distanceLimit)];
 }
 
-void make1DTexture()
+void StreamLine::make1DTexture()
 {
-    return;
+    for(int i = 0; i < 256; i++)
+    {
+        if(i > 135)
+        {
+            texture1D[i][0] = 255;
+            texture1D[i][1] = 255;
+            texture1D[i][2] = 255 - i;
+            texture1D[i][3] = 255;
+        }
+        else if(i < 135 && i > 100)
+        {
+            texture1D[i][0] = 255;
+            texture1D[i][1] = 255 - i;
+            texture1D[i][2] = 255 - i;
+            texture1D[i][3] = 255;
+        }
+        else
+        {
+            texture1D[i][0] = 50 + i;
+            texture1D[i][1] = 200;
+            texture1D[i][2] = 255;
+            texture1D[i][3] = 255;
+        }
+    }
+
+    texture->make1DTexture(0, texture1D, 256);
 }
 
-void make1DTexture(glm::vec2 canvas_size, vector<glm::vec2> red, vector<glm::vec2> green, vector<glm::vec2> blue, vector<glm::vec2> alpha)
+pair<double, double> StreamLine::default_U(double x, double y)
 {
-    return;
-}
-
-void setColorValue(glm::vec2 ratio, vector<glm::vec2> points, int color)
-{
-    return;
-}
-
-double StreamLine::default_U(double, double)
-{
-    return 0.0;
-}
-
-void StreamLine::generateTestData(int, int, double (*)(double, double))
-{
-    return;
+    return {x*y*y, x*x*y};
 }

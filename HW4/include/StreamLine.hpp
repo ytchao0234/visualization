@@ -1,6 +1,7 @@
 #pragma once
 #include <Method.hpp>
 #include <set>
+#include <algorithm>
 using namespace std;
 
 class StreamLine: public Method
@@ -20,9 +21,12 @@ private:
     unsigned char (*texture1D)[4];
 
     double h;
-    int gridSize;
+    int iteration;
+    double gridSize;
     double distanceLimit;
     vector<vector<bool>> collisionTable;
+    double valueMax;
+    bool useDefault_U;
 
 public:
     void makeVertices();
@@ -31,14 +35,11 @@ public:
     void setShader();
     Shader* getShader() const;
 
-    StreamLine(const VectorData*, double, int, double);
+    StreamLine(const VectorData*, double, int, double, double, bool);
     ~StreamLine();
 
     void makeSingleLine(double, double);
     bool hasCollision(double, double);
     void make1DTexture();
-    void make1DTexture(glm::vec2, vector<glm::vec2>, vector<glm::vec2>, vector<glm::vec2>, vector<glm::vec2>);
-    void setColorValue(glm::vec2, vector<glm::vec2>, int);
-    double default_U(double, double);
-    void generateTestData(int, int, double (*)(double, double) = NULL);
+    pair<double, double> default_U(double, double);
 };

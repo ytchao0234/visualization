@@ -39,6 +39,21 @@ bool FileReader::isBigEndian()
     else return false;
 }
 
+int compVec(string a, string b)
+{
+    try
+    {
+        int ia = stoi(a);
+        int ib = stoi(b);
+
+        return ia <= ib;
+    }
+    catch(invalid_argument& e)
+    {
+        return a <= b;
+    }
+}
+
 void FileReader::initNameList()
 {
     DIR * dirp;
@@ -90,6 +105,7 @@ void FileReader::initNameList()
     }
 
     closedir(dirp);
+    sort(vecNameList.begin(), vecNameList.end(), compVec);
 }
 
 void FileReader::readFile(string filename)
@@ -129,8 +145,6 @@ void FileReader::readFile(string filename)
 
         i++;
     }
-    
-    data2->print();
 }
 
 void FileReader::readFile(string infFile, string rawFile)

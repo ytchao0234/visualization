@@ -12,10 +12,12 @@ WindowManager::WindowManager(string title, int width, int height, string glslVer
     this->adjust = 1.0f;
     this->threshold = 0.8f;
     this->h_step = 0.1;
+    this->iteration = 100;
     this->gridSize = 1;
     this->distanceLimit = 0.1;
+    this->useDefault_U = false;
     this->glslVersion = glslVersion;
-    this->methods = {"Isosurface", "Ray Casting", "Slicing", "StreamLine"};
+    this->methods = {"Isosurface", "Ray Casting", "StreamLine"};
     this->importList.clear();
 
     glfwInit();
@@ -134,6 +136,15 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
             static string selectedVec = "1";
             static bool toLoad_s = true;
 
+            if(ImGui::Checkbox("Generate Test Data", &useDefault_U))
+            {
+                toLoad_s = false;
+                drawing_s = true;
+                volumeList.clear();
+                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit, useDefault_U));
+                volumeList.back()->makeVertices();
+            }
+
             if (ImGui::BeginCombo(".vec", selectedVec.c_str()))
             {
                 toLoad_s = false;
@@ -154,6 +165,26 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
                 ImGui::EndCombo();
             }
 
+            if(toLoad_s)
+            {
+                if(ImGui::Button("Load"))
+                {
+                    toLoad_s = false;
+                    drawing_s = true;
+                    volumeList.clear();
+                    volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit, useDefault_U));
+                    volumeList.back()->makeVertices();
+                }
+
+                ImGui::SameLine();
+            }
+
+            if(ImGui::Button("Clear"))
+            {
+                volumeList.clear();
+                drawing_s = false;
+            }
+
             ImGui::NewLine();
             ImGui::Text("Parameters: ");
 
@@ -163,19 +194,31 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
                 else if(h_step > 1) h_step = 1;
 
                 volumeList.clear();
-                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, gridSize, distanceLimit));
+                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit, useDefault_U));
                 
                 if(drawing_s)
                     volumeList.back()->makeVertices();
             }
 
-            if(ImGui::InputInt("grid size", &gridSize, 1, 10))
+            if(ImGui::InputInt("iteration", &iteration, 100, 100))
             {
-                if(gridSize < 1) gridSize = 1;
-                else if(gridSize > 10) gridSize = 10;
+                if(iteration < 100) iteration = 100;
+                else if(iteration > 1000) iteration = 1000;
 
                 volumeList.clear();
-                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, gridSize, distanceLimit));
+                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit, useDefault_U));
+                
+                if(drawing_s)
+                    volumeList.back()->makeVertices();
+            }
+
+            if(ImGui::InputDouble("grid size", &gridSize, 0.2, 10))
+            {
+                if(gridSize < 1) gridSize = 1;
+                else if(gridSize > 20) gridSize = 20;
+
+                volumeList.clear();
+                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit, useDefault_U));
                 
                 if(drawing_s)
                     volumeList.back()->makeVertices();
@@ -184,33 +227,13 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
             if(ImGui::InputDouble("distance limit", &distanceLimit, 0.1, 1))
             {
                 if(distanceLimit < 0.1) distanceLimit = 0.1;
-                else if(distanceLimit > 1) distanceLimit = 1;
+                else if(distanceLimit > 5) distanceLimit = 5;
 
                 volumeList.clear();
-                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, gridSize, distanceLimit));
+                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit, useDefault_U));
                 
                 if(drawing_s)
                     volumeList.back()->makeVertices();
-            }
-
-            if(toLoad_s)
-            {
-                if(ImGui::Button("Load"))
-                {
-                    toLoad_s = false;
-                    drawing_s = true;
-                    volumeList.clear();
-                    volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, gridSize, distanceLimit));
-                    volumeList.back()->makeVertices();
-                }
-
-                ImGui::SameLine();
-
-                if(ImGui::Button("Clear"))
-                {
-                    volumeList.clear();
-                    drawing_s = false;
-                }
             }
         }
         else
@@ -585,8 +608,6 @@ void WindowManager::makeCanvas(string selectedMethod)
         {
             string filename = "./transferFunc/";
             filename += ss.str() + ".trans";
-
-            cout << ss.str() << endl;
 
             ofstream fs;
             fs.open(filename);
@@ -1083,16 +1104,10 @@ void WindowManager::setClippingNormal(int order, bool increase)
     temp = glm::normalize(temp);
 
     clipping[0] = temp.x; clipping[1] = temp.y; clipping[2] = temp.z;
-
-    for(auto t: clipping) cout << t << ", ";
-    cout << endl;
 }
 
 void WindowManager::setClippingValue(bool increase)
 {
     if( increase ) clipping[3]++;
     else clipping[3]--;
-
-    for(auto t: clipping) cout << t << ", ";
-    cout << endl;
 }
