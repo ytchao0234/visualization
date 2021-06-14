@@ -322,25 +322,18 @@ void StreamLine::make1DTexture()
 {
     for(int i = 0; i < 256; i++)
     {
-        if(i > 135)
+        if(i < 128)
         {
-            texture1D[i][0] = 255;
-            texture1D[i][1] = 255;
-            texture1D[i][2] = 255 - i;
-            texture1D[i][3] = 255;
-        }
-        else if(i < 135 && i > 100)
-        {
-            texture1D[i][0] = 255;
-            texture1D[i][1] = 255 - i;
-            texture1D[i][2] = 255 - i;
+            texture1D[i][0] = i * 2;
+            texture1D[i][1] = 50;
+            texture1D[i][2] = 255 - i * 1.5;
             texture1D[i][3] = 255;
         }
         else
         {
-            texture1D[i][0] = 50 + i;
-            texture1D[i][1] = 200;
-            texture1D[i][2] = 255;
+            texture1D[i][0] = 255;
+            texture1D[i][1] = ((i - 127) * 4 + 50 > 255) ? 255 : (i - 127) * 4 + 50;
+            texture1D[i][2] = 63;
             texture1D[i][3] = 255;
         }
     }

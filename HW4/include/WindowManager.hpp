@@ -36,10 +36,6 @@ private:
     float gap;
     float adjust;
     float threshold;
-    double h_step;
-    int iteration;
-    double gridSize;
-    double distanceLimit;
     GLFWwindow* window;
     Camera *camera;
     Light *light;
