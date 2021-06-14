@@ -11,6 +11,7 @@ WindowManager::WindowManager(string title, int width, int height, string glslVer
     this->gap = 2.0f;
     this->adjust = 1.0f;
     this->threshold = 0.8f;
+    this->alpha = 0.005;
     this->glslVersion = glslVersion;
     this->methods = {"Isosurface", "Ray Casting", "StreamLine"};
     this->importList.clear();
@@ -205,7 +206,7 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
             if(ImGui::InputInt("iteration", &iteration, 100, 100))
             {
                 if(iteration < 100) iteration = 100;
-                else if(iteration > 1000) iteration = 1000;
+                else if(iteration > 5000) iteration = 5000;
 
                 volumeList.clear();
                 volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit, generating));
@@ -236,6 +237,17 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
                 
                 if(drawing_s)
                     volumeList.back()->makeVertices();
+            }
+
+            if(drawing_s)
+            {
+                if(ImGui::InputDouble("Line Width", &alpha, 0.001, 1))
+                {
+                    if(alpha < 0.001) alpha = 0.001;
+                    else if(alpha > 0.05) alpha = 0.05;
+                    
+                    volumeList.back()->setShader();
+                }
             }
         }
         else

@@ -36,6 +36,7 @@ private:
     float gap;
     float adjust;
     float threshold;
+    double alpha;
     GLFWwindow* window;
     Camera *camera;
     Light *light;
@@ -84,6 +85,7 @@ public:
     float getGap() { return gap; }
     float getAdjust() { return adjust; }
     float getThreshold() { return threshold; }
+    double getAlpha() { return alpha; }
     GLFWwindow* getWindow() { return window; }
     Camera* getCamera() { return camera; }
     Light * getLight() { return light; }

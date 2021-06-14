@@ -109,7 +109,7 @@ void RayCasting::bindVertices()
     glEnableVertexAttribArray(1);
 }
 
-void RayCasting::draw(glm::mat4 projection, glm::mat4 view, const vector<float> clipping, bool makeCrossSection, float gap, float adjust, float threshold)
+void RayCasting::draw(glm::mat4 projection, glm::mat4 view, const vector<float> clipping, bool makeCrossSection, float gap, float adjust, float threshold, float alpha)
 {
     shader->use();
 

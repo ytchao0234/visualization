@@ -21,7 +21,7 @@ private:
 public:
     void makeVertices();
     void bindVertices();
-    void draw(glm::mat4, glm::mat4, const vector<float>, bool, float, float, float);
+    void draw(glm::mat4, glm::mat4, const vector<float>, bool, float, float, float, float);
     void setShader();
     Shader* getShader() const;
 
