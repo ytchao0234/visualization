@@ -1,11 +1,12 @@
 #include <StreamLine.hpp>
 
-StreamLine::StreamLine(const VectorData* data, double h, int iteration, double gridSize, double distanceLimit, bool useDefault_U)
+StreamLine::StreamLine(const VectorData* data, double h, int iteration, int minLength, double gridSize, double distanceLimit, bool useDefault_U)
 {
     this->data2 = new VectorData(data);
     this->h = h;
     this->gridSize = gridSize;
     this->iteration = iteration;
+    this->minLength = minLength;
     this->distanceLimit = 1 / distanceLimit;
     this->valueMax = 0.0;
     this->useDefault_U = useDefault_U;
@@ -115,17 +116,34 @@ Shader* StreamLine::getShader() const
     return this->shader;
 }
 
-void StreamLine::makeSingleLine(double x, double y)
+glm::dvec2 StreamLine::interpolate(double x, double y)
 {
-    glm::dvec2 point = glm::dvec2(x, y);
-    glm::dvec2 lb, rb, lt, rt;
-    glm::dvec2 K1, P, K2;
-    double dx, dy, lenK1;
+    glm::dvec2 lb, rb, lt, rt, result;
+    double dx, dy;
 
-    set<pair<int, int>> cross;
+    lb = glm::dvec2(data2->value[x    ][y    ].first, data2->value[x    ][y    ].second);
+    rb = glm::dvec2(data2->value[x + 1][y    ].first, data2->value[x + 1][y    ].second);
+    lt = glm::dvec2(data2->value[x    ][y + 1].first, data2->value[x    ][y + 1].second);
+    rt = glm::dvec2(data2->value[x + 1][y + 1].first, data2->value[x + 1][y + 1].second);
+
+    dx = x - (int)x;
+    dy = y - (int)y;
+
+    result = lb * (1-dx)*(1-dy) + rb * dx*(1-dy) + lt * (1-dx)*dy + rt * dx*dy;
+
+    return result;
+}
+
+vector<double> StreamLine::forward(double x, double y, set<pair<int, int>>& cross)
+{
+    vector<double> result;
+    glm::dvec2 point = glm::dvec2(x, y);
+    glm::dvec2 K1, P, K2;
+    double lenK1;
+
     cross.insert({point.x * this->distanceLimit + 0.5, point.y * this->distanceLimit + 0.5});
 
-    int count = 0, length = 0;
+    int count = 0;
     
     while(point.x >= 0.0 && point.y >= 0.0 &&
           point.x < this->data2->size.first - this->gridSize && point.y < this->data2->size.second - this->gridSize)
@@ -135,78 +153,147 @@ void StreamLine::makeSingleLine(double x, double y)
         if(count++ == this->iteration)
             break;
 
-        lb = glm::dvec2(data2->value[point.x    ][point.y    ].first,
-                        data2->value[point.x    ][point.y    ].second);
-        rb = glm::dvec2(data2->value[point.x + 1][point.y    ].first,
-                        data2->value[point.x + 1][point.y    ].second);
-        lt = glm::dvec2(data2->value[point.x    ][point.y + 1].first,
-                        data2->value[point.x    ][point.y + 1].second);
-        rt = glm::dvec2(data2->value[point.x + 1][point.y + 1].first,
-                        data2->value[point.x + 1][point.y + 1].second);
-
-        dx = point.x - (int)point.x;
-        dy = point.y - (int)point.y;
-
-        K1 = lb * (1-dx)*(1-dy) + rb * dx*(1-dy) + lt * (1-dx)*dy + rt * dx*dy;  
+        K1 = interpolate(point.x, point.y);
         lenK1 = glm::length(K1);
 
-        this->vertices.push_back(-point.x);
-        this->vertices.push_back(point.y);
-        this->vertices.push_back(0.0);
-        this->vertices.push_back(count);
-        this->vertices.push_back(lenK1);
+        result.push_back(-point.x);
+        result.push_back(point.y);
+        result.push_back(0.0);
+        result.push_back(count);
+        result.push_back(lenK1);
 
         P = point + this->h * glm::normalize(K1);
 
         if(P.x < 0.0 || P.y < 0.0 ||
            P.x >= this->data2->size.first - this->gridSize || P.y >= this->data2->size.second - this->gridSize)
         {
-            this->vertices.pop_back();
-            this->vertices.pop_back();
-            this->vertices.pop_back();
-            this->vertices.pop_back();
-            this->vertices.pop_back();
+            result.pop_back();
+            result.pop_back();
+            result.pop_back();
+            result.pop_back();
+            result.pop_back();
             break;
         }
 
-        lb = glm::dvec2(data2->value[P.x    ][P.y    ].first,
-                        data2->value[P.x    ][P.y    ].second);
-        rb = glm::dvec2(data2->value[P.x + 1][P.y    ].first,
-                        data2->value[P.x + 1][P.y    ].second);
-        lt = glm::dvec2(data2->value[P.x    ][P.y + 1].first,
-                        data2->value[P.x    ][P.y + 1].second);
-        rt = glm::dvec2(data2->value[P.x + 1][P.y + 1].first,
-                        data2->value[P.x + 1][P.y + 1].second);
-
-        dx = P.x - (int)P.x;
-        dy = P.y - (int)P.y;
-
-        K2 = lb * (1-dx)*(1-dy) + rb * dx*(1-dy) + lt * (1-dx)*dy + rt * dx*dy;
+        K2 = interpolate(P.x, P.y);
 
         point = point + this->h * 0.5 * (glm::normalize(K1) + glm::normalize(K2));
 
-        this->vertices.push_back(-point.x);
-        this->vertices.push_back(point.y);
-        this->vertices.push_back(0.0);
-        this->vertices.push_back(count);
-        this->vertices.push_back(lenK1);
+        result.push_back(-point.x);
+        result.push_back(point.y);
+        result.push_back(0.0);
+        result.push_back(count);
+        result.push_back(lenK1);
         
         this->valueMax = max(this->valueMax, lenK1);
 
         cross.insert({point.x * this->distanceLimit + 0.5, point.y * this->distanceLimit + 0.5});
-
-        length++;
     }
 
-    for(auto cell: cross)
+    return result;
+}
+
+vector<double> StreamLine::backward(double x, double y, set<pair<int, int>>& cross)
+{
+    vector<double> result;
+    glm::dvec2 point = glm::dvec2(x, y);
+    glm::dvec2 K1, P, K2;
+    double lenK1;
+
+    cross.insert({point.x * this->distanceLimit + 0.5, point.y * this->distanceLimit + 0.5});
+
+    int count = 0;
+    
+    while(point.x >= 0.0 && point.y >= 0.0 &&
+          point.x < this->data2->size.first - this->gridSize && point.y < this->data2->size.second - this->gridSize)
     {
-        this->collisionTable[cell.first][cell.second] = true;
+        if(this->collisionTable[point.x * this->distanceLimit + 0.5][point.y * this->distanceLimit + 0.5])
+            break;
+        if(count++ == this->iteration)
+            break;
+
+        K1 = interpolate(point.x, point.y);
+        lenK1 = glm::length(K1);
+
+        result.push_back(-point.x);
+        result.push_back(point.y);
+        result.push_back(0.0);
+        result.push_back(count);
+        result.push_back(lenK1);
+
+        P = point - this->h * glm::normalize(K1);
+
+        if(P.x < 0.0 || P.y < 0.0 ||
+           P.x >= this->data2->size.first - this->gridSize || P.y >= this->data2->size.second - this->gridSize)
+        {
+            result.pop_back();
+            result.pop_back();
+            result.pop_back();
+            result.pop_back();
+            result.pop_back();
+            break;
+        }
+
+        K2 = interpolate(P.x, P.y);
+
+        point = point - this->h * 0.5 * (glm::normalize(K1) + glm::normalize(K2));
+
+        result.push_back(-point.x);
+        result.push_back(point.y);
+        result.push_back(0.0);
+        result.push_back(count);
+        result.push_back(lenK1);
+        
+        this->valueMax = max(this->valueMax, lenK1);
+
+        cross.insert({point.x * this->distanceLimit + 0.5, point.y * this->distanceLimit + 0.5});
     }
 
-    for(int i = 1; i <= length * 2; i++)
+    return result;
+}
+
+void StreamLine::makeSingleLine(double x, double y)
+{
+    set<pair<int, int>> cross;
+    double currentMax = this->valueMax;
+
+    vector<double> f = forward(x, y, cross);
+    vector<double> b = backward(x, y, cross);
+
+    if((int)(b.size() + f.size()) / 5 >= this->minLength)
     {
-        vertices[vertices.size() - i * 5 + 3]  = vertices[vertices.size() - i * 5 + 3] / length + 0.5;
+        for(auto cell: cross)
+        {
+            this->collisionTable[cell.first][cell.second] = true;
+        }
+
+        for(int i = (int)b.size() - 1; i >= 0; i-=5)
+        {
+            this->vertices.push_back(b[i-4]);
+            this->vertices.push_back(b[i-3]);
+            this->vertices.push_back(b[i-2]);
+            this->vertices.push_back(b[i-1] / (b.size() / 5) + 0.5);
+            this->vertices.push_back(b[i]);
+        }
+
+        for(int i = 0; i < (int)f.size(); i+=5)
+        {
+            this->vertices.push_back(f[i]);
+            this->vertices.push_back(f[i+1]);
+            this->vertices.push_back(f[i+2]);
+            this->vertices.push_back((f[i+3] + b.size()) / ((b.size() + f.size()) / 5) + 0.5);
+            this->vertices.push_back(f[i+4]);
+        }
     }
+    else
+    {
+        this->valueMax = currentMax;
+    }
+}
+
+glm::dvec2 StreamLine::default_U(double x, double y)
+{
+    return {x*y*y, x*x*y};
 }
 
 void StreamLine::makeSingleLine_U(double x, double y)
@@ -214,7 +301,7 @@ void StreamLine::makeSingleLine_U(double x, double y)
     glm::dvec2 point = glm::dvec2(x, y);
     glm::dvec2 K1, P, K2;
     double lenK1;
-    pair<double, double> U_vec;
+    glm::dvec2 U_vec;
 
     set<pair<int, int>> cross;
     cross.insert({(int)((point.x + 5) * 5 * this->distanceLimit + 0.5), (int)((point.y + 5) * 5 * this->distanceLimit + 0.5)});
@@ -231,7 +318,7 @@ void StreamLine::makeSingleLine_U(double x, double y)
 
         U_vec = default_U(point.x, point.y);
 
-        K1 = glm::dvec2(U_vec.first, U_vec.second);  
+        K1 = glm::dvec2(U_vec.x, U_vec.y);  
         lenK1 = glm::length(K1);
 
         this->vertices.push_back(point.x);
@@ -255,7 +342,7 @@ void StreamLine::makeSingleLine_U(double x, double y)
 
         U_vec = default_U(P.x, P.y);
 
-        K2 = glm::dvec2(U_vec.first, U_vec.second);  
+        K2 = glm::dvec2(U_vec.x, U_vec.y);  
 
         point = point + this->h * 0.5 * (glm::normalize(K1) + glm::normalize(K2));
 
@@ -304,9 +391,4 @@ void StreamLine::make1DTexture()
     }
 
     texture->make1DTexture(0, texture1D, 256);
-}
-
-pair<double, double> StreamLine::default_U(double x, double y)
-{
-    return {x*y*y, x*x*y};
 }

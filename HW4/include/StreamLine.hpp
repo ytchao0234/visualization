@@ -22,6 +22,7 @@ private:
 
     double h;
     int iteration;
+    int minLength;
     double gridSize;
     double distanceLimit;
     vector<vector<bool>> collisionTable;
@@ -35,11 +36,17 @@ public:
     void setShader();
     Shader* getShader() const;
 
-    StreamLine(const VectorData*, double, int, double, double, bool = false);
+    StreamLine(const VectorData*, double, int, int, double, double, bool = false);
     ~StreamLine();
 
+    glm::dvec2 interpolate(double, double);
+    vector<double> forward(double, double, set<pair<int, int>>&);
+    vector<double> backward(double, double, set<pair<int, int>>&);
     void makeSingleLine(double, double);
+
+    glm::dvec2 default_U(double, double);
+    vector<double> forward_U(double, double, set<pair<int, int>>&);
+    vector<double> backward_U(double, double, set<pair<int, int>>&);
     void makeSingleLine_U(double, double);
     void make1DTexture();
-    pair<double, double> default_U(double, double);
 };

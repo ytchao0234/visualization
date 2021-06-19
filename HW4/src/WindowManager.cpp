@@ -131,7 +131,8 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
         {
             static string selectedVec = "1";
             static double h_step = 0.1;
-            static int iteration = 100;
+            static int iteration = 500;
+            static int minLength = 50;
             static double gridSize = 1;
             static double distanceLimit = 0.1;
             static bool toLoad_s = true;
@@ -165,7 +166,7 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
                     drawing_s = true;
                     generating = false;
                     volumeList.clear();
-                    volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit));
+                    volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, minLength, gridSize, distanceLimit));
                     volumeList.back()->makeVertices();
                 }
 
@@ -184,7 +185,7 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
                 drawing_s = true;
                 generating = true;
                 volumeList.clear();
-                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit, generating));
+                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, minLength, gridSize, distanceLimit, generating));
                 volumeList.back()->makeVertices();
             }
 
@@ -197,7 +198,7 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
                 else if(h_step > 1) h_step = 1;
 
                 volumeList.clear();
-                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit, generating));
+                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, minLength, gridSize, distanceLimit, generating));
                 
                 if(drawing_s)
                     volumeList.back()->makeVertices();
@@ -205,11 +206,23 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
 
             if(ImGui::InputInt("iteration", &iteration, 100, 100))
             {
-                if(iteration < 100) iteration = 100;
+                if(iteration < minLength) iteration = minLength;
                 else if(iteration > 5000) iteration = 5000;
 
                 volumeList.clear();
-                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit, generating));
+                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, minLength, gridSize, distanceLimit, generating));
+                
+                if(drawing_s)
+                    volumeList.back()->makeVertices();
+            }
+
+            if(ImGui::InputInt("Min Length", &minLength, 10, 100))
+            {
+                if(minLength < 0) minLength = 0;
+                else if(minLength > 1000) minLength = 1000;
+
+                volumeList.clear();
+                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, minLength, gridSize, distanceLimit, generating));
                 
                 if(drawing_s)
                     volumeList.back()->makeVertices();
@@ -221,7 +234,7 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
                 else if(gridSize > 20) gridSize = 20;
 
                 volumeList.clear();
-                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit, generating));
+                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, minLength, gridSize, distanceLimit, generating));
                 
                 if(drawing_s)
                     volumeList.back()->makeVertices();
@@ -233,7 +246,7 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
                 else if(distanceLimit > 5) distanceLimit = 5;
 
                 volumeList.clear();
-                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, gridSize, distanceLimit, generating));
+                volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, minLength, gridSize, distanceLimit, generating));
                 
                 if(drawing_s)
                     volumeList.back()->makeVertices();
