@@ -81,18 +81,21 @@ Shader::Shader(const char* vertexPath, const char* fragmentPath, const char* geo
     }
 
     // geometry Shader
-    geometry = glCreateShader(GL_GEOMETRY_SHADER);
-    glShaderSource(geometry, 1, &gShaderCode, NULL);
-    glCompileShader(geometry);
-    glGetShaderiv(geometry, GL_COMPILE_STATUS, &success);
-    if(!success)
+    if(geometryPath)
     {
-        glGetShaderInfoLog(geometry, 512, NULL, infoLog);
-        cout << "ERROR::SHADER::GEOMETRY::COMPILATION_FAILED\n" << infoLog << endl;
-    }
-    else
-    {
-        cout << "SUCCESS::SHADER::GEOMETRY::COMPILATION_SUCCESSED" << endl;
+        geometry = glCreateShader(GL_GEOMETRY_SHADER);
+        glShaderSource(geometry, 1, &gShaderCode, NULL);
+        glCompileShader(geometry);
+        glGetShaderiv(geometry, GL_COMPILE_STATUS, &success);
+        if(!success)
+        {
+            glGetShaderInfoLog(geometry, 512, NULL, infoLog);
+            cout << "ERROR::SHADER::GEOMETRY::COMPILATION_FAILED\n" << infoLog << endl;
+        }
+        else
+        {
+            cout << "SUCCESS::SHADER::GEOMETRY::COMPILATION_SUCCESSED" << endl;
+        }
     }
 
     // shader Program

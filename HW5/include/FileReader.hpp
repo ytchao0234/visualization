@@ -10,6 +10,7 @@
 #include <FileInfo.hpp>
 #include <VolumeData.hpp>
 #include <VectorData.hpp>
+#include <MultiDimData.hpp>
 
 #define WINDOWS_SYSTEM
 #ifdef WINDOWS_SYSTEM
@@ -27,9 +28,11 @@ private:
     vector<string> infNameList;
     vector<string> rawNameList;
     vector<string> vecNameList;
+    vector<string> datNameList;
     FileInfo *info;
     VolumeData *data1;
     VectorData *data2;
+    MultiDimData *data3;
     string endian;
 
 public:
@@ -40,7 +43,7 @@ public:
     bool isBigEndian();
     
     void readFile(string, string);
-    void readFile(string);
+    void readFile(string, bool = true);
     void readInf(string);
     void readRawData(string);
     template<typename T>
@@ -49,9 +52,11 @@ public:
     vector<string> getInfNameList() const;
     vector<string> getRawNameList() const;
     vector<string> getVecNameList() const;
+    vector<string> getDatNameList() const;
     FileInfo* getInfo() const;
     VolumeData* getVolumeData() const;
     VectorData* getVectorData() const;
+    MultiDimData* getMultiDimData() const;
 };
 
 template<typename T>

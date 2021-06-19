@@ -80,7 +80,7 @@ void StreamLine::bindVertices()
     glEnableVertexAttribArray(2);
 }
 
-void StreamLine::draw(glm::mat4 projection, glm::mat4 view, const vector<float> clipping, bool makeCrossSection, float gap, float adjust, float threshold, float alpha)
+void StreamLine::draw(glm::mat4 projection, glm::mat4 view, const vector<float> clipping, bool makeCrossSection, float gap, float adjust, float threshold, float alpha, bool drawParallel)
 {
     shader->use();
 

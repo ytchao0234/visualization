@@ -14,6 +14,7 @@
 #include <Isosurface.hpp>
 #include <RayCasting.hpp>
 #include <StreamLine.hpp>
+#include <MultiDimention.hpp>
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_glfw.h>
@@ -37,6 +38,7 @@ private:
     float adjust;
     float threshold;
     double alpha;
+    bool drawParallel;
     GLFWwindow* window;
     Camera *camera;
     Light *light;
@@ -86,6 +88,7 @@ public:
     float getAdjust() { return adjust; }
     float getThreshold() { return threshold; }
     double getAlpha() { return alpha; }
+    bool getDrawParallel() { return drawParallel; }
     GLFWwindow* getWindow() { return window; }
     Camera* getCamera() { return camera; }
     Light * getLight() { return light; }

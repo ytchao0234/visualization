@@ -1,5 +1,4 @@
 #include <FileReader.hpp>
-#include <FileReader.hpp>
 
 FileReader::FileReader(string rootPath)
 {
@@ -10,6 +9,7 @@ FileReader::FileReader(string rootPath)
     info = new FileInfo();
     data1 = new VolumeData();
     data2 = new VectorData();
+    data3 = new MultiDimData();
     endian = isBigEndian() ? "big" : "little";
 }
 
@@ -18,6 +18,7 @@ FileReader::~FileReader()
     delete info;
     delete data1;
     delete data2;
+    delete data3;
 }
 
 bool FileReader::isBigEndian()
@@ -106,44 +107,104 @@ void FileReader::initNameList()
 
     closedir(dirp);
     sort(vecNameList.begin(), vecNameList.end(), compVec);
-}
 
-void FileReader::readFile(string filename)
-{
-    filename = rootPath + "Vector/" + filename;
-    filename += ".vec";
+    dirp = opendir((rootPath + "MultiDim/").c_str());
 
-    ifstream fs;
-    fs.open(filename.c_str(), ios::in | ios::binary );
-
-    if (!fs.is_open())
+    if (dirp == NULL) 
     {
-        cout << "ERROR::FILEREADER::OPENFILE::" << filename.c_str() << "_FAILED"<< endl;
-        exit(1);
+        cout << "Error(" << errno << ") opening " << rootPath.c_str() << endl;
+        perror("opendir");
+
+        return;
     }
 
-    string content;
-    getline(fs, content);
-    fs.close();
+    while ((entry = readdir(dirp)) != NULL) {
+        if(strstr(entry->d_name, ".dat") != NULL)
+        {
+            fullname = entry->d_name;
+            datNameList.push_back(fullname.substr(0, fullname.length() - 4));
+        }
+    }
 
-    istringstream ss(content);
-    double value1, value2;
-    int i = 0;
+    closedir(dirp);
+}
 
-    ss >> value1 >> value2;
-
-    this->data2->size = {value1, value2};
-    this->data2->value.assign(this->data2->size.first,
-                              vector<pair<double, double>>(this->data2->size.second));
-    
-    for(int x = 0; x < this->data2->size.first; x++)
-    for(int y = 0; y < this->data2->size.second; y++)
+void FileReader::readFile(string filename, bool readTensor)
+{
+    if(readTensor)
     {
+        filename = rootPath + "Vector/" + filename;
+        filename += ".vec";
+
+        ifstream fs;
+        fs.open(filename.c_str(), ios::in | ios::binary );
+
+        if (!fs.is_open())
+        {
+            cout << "ERROR::FILEREADER::OPENFILE::" << filename.c_str() << "_FAILED"<< endl;
+            exit(1);
+        }
+
+        string content;
+        getline(fs, content);
+        fs.close();
+
+        istringstream ss(content);
+        double value1, value2;
+
         ss >> value1 >> value2;
 
-        this->data2->value[x][y] = {value1, value2};
+        this->data2->size = {value1, value2};
+        this->data2->value.assign(this->data2->size.first,
+                                  vector<pair<double, double>>(this->data2->size.second));
+        
+        for(int x = 0; x < this->data2->size.first; x++)
+        for(int y = 0; y < this->data2->size.second; y++)
+        {
+            ss >> value1 >> value2;
 
-        i++;
+            this->data2->value[x][y] = {value1, value2};
+        }
+    }
+    else
+    {
+        filename = rootPath + "MultiDim/" + filename;
+        filename += ".dat";
+
+        ifstream fs;
+        fs.open(filename.c_str(), ios::in | ios::binary );
+
+        if (!fs.is_open())
+        {
+            cout << "ERROR::FILEREADER::OPENFILE::" << filename.c_str() << "_FAILED"<< endl;
+            exit(1);
+        }
+
+        string content;
+        stringstream ss;
+        double value;
+
+        this->data3->value.clear();
+
+        while(getline(fs, content))
+        {
+            this->data3->value.push_back(vector<double>());
+
+            ss.clear();
+            ss << content;
+            
+            while(ss >> value)
+            {
+                if(ss.fail()) break;
+
+                this->data3->value.back().push_back(value);
+            }
+        }
+
+        fs.close();
+
+        this->data3->size = {this->data3->value.size(), this->data3->value[0].size()};
+        this->data3->distance.assign(this->data3->size.first, vector<double>(this->data3->size.first, 0));
     }
 }
 
@@ -264,6 +325,11 @@ vector<string> FileReader::getVecNameList() const
     return vecNameList;
 }
 
+vector<string> FileReader::getDatNameList() const
+{
+    return datNameList;
+}
+
 FileInfo* FileReader::getInfo() const
 {
     return info;
@@ -277,4 +343,9 @@ VolumeData* FileReader::getVolumeData() const
 VectorData* FileReader::getVectorData() const
 {
     return data2;
+}
+
+MultiDimData* FileReader::getMultiDimData() const
+{
+    return data3;
 }

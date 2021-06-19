@@ -12,8 +12,9 @@ WindowManager::WindowManager(string title, int width, int height, string glslVer
     this->adjust = 1.0f;
     this->threshold = 0.8f;
     this->alpha = 0.005;
+    this->drawParallel = false;
     this->glslVersion = glslVersion;
-    this->methods = {"Isosurface", "Ray Casting", "StreamLine"};
+    this->methods = {"Isosurface", "Ray Casting", "StreamLine", "MultiDimention"};
     this->importList.clear();
 
     glfwInit();
@@ -106,7 +107,7 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
 
         ImGui::Text("Method: ");
 
-        if (ImGui::BeginCombo("method", selectedMethod.c_str()))
+        if (ImGui::BeginCombo("method##0", selectedMethod.c_str()))
         {
             for (int i = 0; i < (int)methods.size(); i++)
             {
@@ -125,17 +126,19 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
 
         ImGui::Text("File: ");
 
-        static bool drawing_s = false;
+        static bool drawing_s = false, drawing_m = false;
 
         if(selectedMethod == "StreamLine")
         {
+            drawing_m = false;
+
             static string selectedVec = "1";
             static double h_step = 0.1;
             static int iteration = 500;
             static int minLength = 50;
             static double gridSize = 1;
             static double distanceLimit = 0.1;
-            static bool toLoad_s = true;
+            static bool toLoad_s = false;
             static bool generating = false;
 
             if (ImGui::BeginCombo(".vec", selectedVec.c_str()))
@@ -263,9 +266,107 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
                 }
             }
         }
+        else if(selectedMethod == "MultiDimention")
+        {
+            drawing_s = false;
+
+            static string selectedDat = "score";
+            static double lambda = 0.9, alpha = 0.9;
+            static string optionList[2] = {"SammonMapping", "PCA"};
+            static string option = "SammonMapping";
+            static bool toLoad_m = false;
+
+            if (ImGui::BeginCombo(".dat", selectedDat.c_str()))
+            {
+                toLoad_m = false;
+
+                for (auto dat: fr->getDatNameList())
+                {
+                    if(ImGui::Selectable(dat.c_str()))
+                    {
+                        selectedDat = dat;
+                        fr->readFile(selectedDat, false);
+                        toLoad_m = true;
+                        drawing_m = false;
+                    }
+                    if(selectedDat == dat)
+                    {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+
+            if (ImGui::BeginCombo("method##1", option.c_str()))
+            {
+                for (auto op: optionList)
+                {
+                    if(ImGui::Selectable(op.c_str()))
+                    {
+                        option = op;
+                    }
+                    if(option == op)
+                    {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+
+            ImGui::Checkbox("Draw Parallel Coordinate", &drawParallel);
+
+            if(toLoad_m)
+            {
+                if(ImGui::Button("Load"))
+                {
+                    volumeList.clear();
+                    volumeList.push_back(new MultiDimention(fr->getMultiDimData(), lambda, alpha, option));
+                    volumeList.back()->makeVertices();
+                    drawing_m = true;
+                }
+
+                ImGui::SameLine();
+            }
+
+            if(ImGui::Button("Clear"))
+            {
+                volumeList.clear();
+                drawing_m = false;
+            }
+            
+            ImGui::NewLine();
+            ImGui::Text("Parameters: ");
+
+            if(ImGui::InputDouble("lambda", &lambda, 0.05, 1))
+            {
+                if(lambda < 0.0) lambda = 0.0;
+                else if(lambda > 0.9) lambda = 0.9;
+
+                if(drawing_m)
+                {
+                    volumeList.clear();
+                    volumeList.push_back(new MultiDimention(fr->getMultiDimData(), lambda, alpha, option));
+                    volumeList.back()->makeVertices();
+                }
+            }
+
+            if(ImGui::InputDouble("alpha", &alpha, 0.05, 1))
+            {
+                if(alpha < 0.0) alpha = 0.0;
+                else if(alpha > 0.9) alpha = 0.9;
+
+                if(drawing_m)
+                {
+                    volumeList.clear();
+                    volumeList.push_back(new MultiDimention(fr->getMultiDimData(), lambda, alpha, option));
+                    volumeList.back()->makeVertices();
+                }
+            }
+        }
         else
         {
             drawing_s = false;
+            drawing_m = false;
 
             static string selectedInf = "engine";
             static string selectedRaw = selectedInf;
@@ -958,7 +1059,6 @@ void WindowManager::initObjects()
 
     fr = new FileReader("./Data/");
     fr->initNameList();
-    fr->readFile("1");
 
     histogram = NULL;
     heatmap = NULL;

@@ -23,7 +23,7 @@ int main()
             volume->draw(wm.getCamera()->getProjection(wm.getWidth(), wm.getHeight()), wm.getCamera()->getView(),
                                                        wm.getClipping(), wm.getMakeCrossSection(),
                                                        wm.getGap(), wm.getAdjust(), wm.getThreshold(),
-                                                       wm.getAlpha());
+                                                       wm.getAlpha(), wm.getDrawParallel());
         }
 
         wm.renderGUI();
