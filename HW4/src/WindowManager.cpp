@@ -194,7 +194,7 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
 
             if(ImGui::InputDouble("h", &h_step, 0.1, 1))
             {
-                if(h_step < 0.1) h_step = 0.1;
+                if(h_step < 0.01) h_step = 0.01;
                 else if(h_step > 1) h_step = 1;
 
                 volumeList.clear();
@@ -219,7 +219,7 @@ void WindowManager::makeMainMenu(bool& toRenderGraph, bool& toRenderCanvas, stri
             if(ImGui::InputInt("Min Length", &minLength, 10, 100))
             {
                 if(minLength < 0) minLength = 0;
-                else if(minLength > 1000) minLength = 1000;
+                else if(minLength > 5000) minLength = 5000;
 
                 volumeList.clear();
                 volumeList.push_back(new StreamLine(fr->getVectorData(), h_step, iteration, minLength, gridSize, distanceLimit, generating));
