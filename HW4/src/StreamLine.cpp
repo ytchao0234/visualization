@@ -272,7 +272,7 @@ void StreamLine::makeSingleLine(double x, double y)
             this->vertices.push_back(b[i-4]);
             this->vertices.push_back(b[i-3]);
             this->vertices.push_back(b[i-2]);
-            this->vertices.push_back(b[i-1] / (b.size() / 5) + 0.5);
+            this->vertices.push_back((b.size() / 10 - b[i-1] + 1) / ((b.size() + f.size()) / 10) + 0.5);
             this->vertices.push_back(b[i]);
         }
 
@@ -281,7 +281,7 @@ void StreamLine::makeSingleLine(double x, double y)
             this->vertices.push_back(f[i]);
             this->vertices.push_back(f[i+1]);
             this->vertices.push_back(f[i+2]);
-            this->vertices.push_back((f[i+3] + b.size()) / ((b.size() + f.size()) / 5) + 0.5);
+            this->vertices.push_back((f[i+3] + b.size() / 10) / ((b.size() + f.size()) / 10) + 0.5);
             this->vertices.push_back(f[i+4]);
         }
     }
@@ -434,7 +434,7 @@ void StreamLine::makeSingleLine_U(double x, double y)
             this->vertices.push_back(b[i-4]);
             this->vertices.push_back(b[i-3]);
             this->vertices.push_back(b[i-2]);
-            this->vertices.push_back(b[i-1] / (b.size() / 5) + 0.5);
+            this->vertices.push_back((b.size() / 10 - b[i-1] + 1) / ((b.size() + f.size()) / 10) + 0.5);
             this->vertices.push_back(b[i]);
         }
 
@@ -443,7 +443,7 @@ void StreamLine::makeSingleLine_U(double x, double y)
             this->vertices.push_back(f[i]);
             this->vertices.push_back(f[i+1]);
             this->vertices.push_back(f[i+2]);
-            this->vertices.push_back((f[i+3] + b.size()) / ((b.size() + f.size()) / 5) + 0.5);
+            this->vertices.push_back((f[i+3] + b.size() / 10) / ((b.size() + f.size()) / 10) + 0.5);
             this->vertices.push_back(f[i+4]);
         }
     }
